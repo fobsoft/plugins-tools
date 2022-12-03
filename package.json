@@ -1,0 +1,16 @@
+{
+	"name" : "nodealarmproxy",
+	"url" : "https://github.com/fobsoft/plugins-tools",
+	"email" : "fobsoft@gmail.com",
+	"version" : "0.0.1",
+  "license": "GPL-3.0",
+	"description" : "Incllue des fonction cmmmune à tous mes plugins",
+	"repository" : {
+		"type" : "git",
+		"url" : "https://github.com/fobsoft/plugins-tools"
+	},
+	"main": "plugins-tools",
+  "dependencies": {
+    "request": "latest"
+  }
+}
