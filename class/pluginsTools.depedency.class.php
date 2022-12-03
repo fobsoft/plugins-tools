@@ -16,7 +16,7 @@
 * along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
 */
 
-class pluginsTools {
+class pluginsToolsDepedency {
   public function purgeLog(&$_eqLogic) {
     $maxLineLog = config::byKey('maxLineLog', __CLASS__, 500);
     $path =       dirname(__FILE__) . '/../../../../log/pluginLog/plugin' . $_eqLogic -> getId() . '.log';
