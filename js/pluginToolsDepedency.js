@@ -75,7 +75,7 @@
         var previousName = el.text();
         
         if (isset(formatFnct)) {
-          result = callFunct(formatFnct, result, {});
+          result = callFunct(formatFnct, [result], {});
         }
         
         if (result != '') {
