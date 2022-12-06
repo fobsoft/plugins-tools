@@ -68,29 +68,41 @@
   // Renommer un block
   $('body').off('click','.bt_rename').on('click','.bt_rename',  function () {
     var dataClosest =   $(this).attr('data-closest');
+    var formatFnct =    $(this).attr('data-formatFnct');
     var el =            $(this);
     bootbox.prompt("{{Nouveau nom ?}}", function (result) {
       if (result !== null && result != '') {
         var previousName = el.text();
-        el.text(result);
-        el.closest('.panel.panel-default').find('span.name').text(result);
-        if (el.hasClass('zoneAttr')) {
-          $('.modeAttr[data-l1key=' + dataClosest + ']').each(function () {
-            if ($(this).text() == previousName) {
-              $(this).text(result);
-            }
-          });
+        
+        if (isset(formatFnct)) {
+          result = callFunct(formatFnct, result, []);
+        }
+        
+        if (result != '') {
+          el.text(result);
+          el.closest('.panel.panel-default').find('span.name').text(result);
+          if (el.hasClass('zoneAttr')) {
+            $('.modeAttr[data-l1key=' + dataClosest + ']').each(function () {
+              if ($(this).text() == previousName) {
+                $(this).text(result);
+              }
+            });
+          }
         }
       }
     });
   });  
 
 // AJOUTER UN BLOCK DE CONFIGURATION D'UN EQUIPEMENT
-function addBlock(_fctName, _arrayValue, _arguments) {
+function callFunct(_fctName, _defaultArguments, _arrayCallArguments) {
   var fn = window[_fctName];
   if (typeof fn !== 'function')
     return;
 
-  for (var i in _arrayValue)
-    fn.apply(window, _arguments.concat([_arrayValue[i]]));
+  if (_arrayCallArguments.length > 0) {
+    for (var i in _arrayCallArguments)
+      fn.apply(window, _defaultArguments.concat([_arrayCallArguments[i]]));
+  }
+  else
+    fn.apply(window, _defaultArguments);
 } 

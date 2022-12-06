@@ -44,12 +44,12 @@ class pluginsToolsDepedency {
       pluginsTools::addLog($_eqLogic, $_typeLog, $_log, $_level);
     
     //if ($_eqLogic -> getConfiguration('logLevel', 'default') == 'advanced')
-    $_eqLogic -> _parentLog++;
+    $_eqLogic -> increaseParentLog();
   }
 
   public static function unIncLog(&$_eqLogic, $_typeLog = '', $_log = '', $_level = '') {
     //if ($_eqLogic -> getConfiguration('logLevel', 'default') == 'advanced')
-    $_eqLogic -> _parentLog--;
+    $_eqLogic -> decreaseParentLog();
     
     if ($_log != '')
       pluginsTools::addLog($_eqLogic, $_typeLog, $_log, $_level);
@@ -73,7 +73,7 @@ class pluginsToolsDepedency {
     foreach ((!is_array($_log)? (array)$_log:$_log) as $log)
       $logResult = array_merge($logResult, explode("\n", $log));
       
-    $_eqLogic -> _log[] = array('dateLog' => date('Y-m-d H:i:s'), 'typeLog' => $_typeLog, 'level' => $_level, 'padLog' => $_eqLogic -> _parentLog, 'log' => $logResult);
+    $_eqLogic -> addLog(array('dateLog' => date('Y-m-d H:i:s'), 'typeLog' => $_typeLog, 'level' => $_level, 'padLog' => $_eqLogic -> getParentLog(), 'log' => $logResult));
   }
 
   public static function addArrayLog(&$_eqLogic, $_typeLog, $_log, $_display, $_title = '', $_level = 'debug') {
@@ -93,7 +93,7 @@ class pluginsToolsDepedency {
       $logResult = $_display;
       $logResult = str_replace('{key}', $key, $logResult);
       $logResult = str_replace(array_keys($row), array_values($row), $logResult);
-      $_eqLogic -> _log[] = array('dateLog' => date('Y-m-d H:i:s'), 'typeLog' => $_typeLog, 'level' => $_level, 'padLog' => $_eqLogic -> _parentLog, 'log' => $logResult);
+      $_eqLogic -> addLog(array('dateLog' => date('Y-m-d H:i:s'), 'typeLog' => $_typeLog, 'level' => $_level, 'padLog' => $_eqLogic -> getParentLog(), 'log' => $logResult));
     }
     
     if ($_title != '')
@@ -115,13 +115,15 @@ class pluginsToolsDepedency {
                         'Display' =>        array('message_placeholder' => 'code', 'title_disable' => 1, 'showStatsOnmobile' => 0, 'showStatsOndashboard' => 0, 'invertBinary' => 0, 'icon' => ''))  
   */
   
-  public static function setCmdList(&$_eqLogic, $_listCmdToCreated) {
+  public static function setCmdList(&$_eqLogic) {
     pluginsTools::incLog($_eqLogic, 'DEBUG', 'Configuration de la liste des commandes');
     
-    $eqLogicId =      $_eqLogic -> getId();
-    $keyNotUpdated =  array('IsVisible', 'IsHistorized', 'Generic_type');
+    $eqLogicId =        $_eqLogic -> getId();
+    $keyNotUpdated =    array('IsVisible', 'IsHistorized', 'Generic_type');
+    $listCmdToCreated = $_eqLogic -> getListCmdToCreated();
+    $orderCreationCmd = $_eqLogic -> getOrderCreationCmd();
    
-    foreach ($_listCmdToCreated as $logicalId => $configInfos) {      
+    foreach ($listCmdToCreated as $logicalId => $configInfos) {      
       pluginsTools::incLog($_eqLogic, 'DEBUG', 'Commande '.$logicalId);
       pluginsTools::incLog($_eqLogic, 'DEBUG', 'Search commande '.$logicalId);
       
@@ -181,8 +183,8 @@ class pluginsToolsDepedency {
                     if (isset($keyNotUpdated[$key]) && in_array($arrKey, $keyNotUpdated[$key]) && !$nbwCmd)
                       continue;
                     
-                    pluginsTools::setLog($_eqLogic, 'DEBUG','set'.$$arrKey.' with value:'.$_listCmdToCreated[str_replace('#', '', $arrValue)]['id']);
-                    $cmd -> {'set'.$key}($arrKey, $_listCmdToCreated[str_replace('#', '', $arrValue)]['id']);
+                    pluginsTools::setLog($_eqLogic, 'DEBUG','set'.$$arrKey.' with value:'.$listCmdToCreated[str_replace('#', '', $arrValue)]['id']);
+                    $cmd -> {'set'.$key}($arrKey, $listCmdToCreated[str_replace('#', '', $arrValue)]['id']);
                   }
                 }
               }
@@ -197,16 +199,16 @@ class pluginsToolsDepedency {
                 $cmd -> {'set'.$key}($value);
               }
               else {
-                pluginsTools::setLog($_eqLogic, 'DEBUG','set '.$key.' with value:'.$_listCmdToCreated[str_replace('#', '', $value)]['id']);
-                $cmd -> {'set'.$key}($_listCmdToCreated[str_replace('#', '', $value)]['id']);
+                pluginsTools::setLog($_eqLogic, 'DEBUG','set '.$key.' with value:'.$listCmdToCreated[str_replace('#', '', $value)]['id']);
+                $cmd -> {'set'.$key}($listCmdToCreated[str_replace('#', '', $value)]['id']);
               }
             }
           }
         }
         pluginsTools::setLog($_eqLogic, 'DEBUG','set EqType with value:'.$_eqLogic -> getEqType_name());
         $cmd -> setEqType($_eqLogic -> getEqType_name());
-        pluginsTools::setLog($_eqLogic, 'DEBUG','set Order with value:'.$_eqLogic -> _orderCreationCmd);
-        $cmd -> setOrder($_eqLogic -> _orderCreationCmd++);
+        pluginsTools::setLog($_eqLogic, 'DEBUG','set Order with value:'.$orderCreationCmd);
+        $cmd -> setOrder($orderCreationCmd++);
         $cmd -> save();
 
         pluginsTools::unIncLog($_eqLogic, 'DEBUG');
@@ -216,23 +218,27 @@ class pluginsToolsDepedency {
         
         pluginsTools::unIncLog($_eqLogic, 'DEBUG');
         
-        $_listCmdToCreated[$logicalId]['id'] = $cmd -> getId();
+        $listCmdToCreated[$logicalId]['id'] = $cmd -> getId();
       }
       elseif (is_object($cmd))
         $cmd -> remove();
     }
+    
+    $_eqLogic -> setListCmdToCreated();
+    $_eqLogic -> setOrderCreationCmd($orderCreationCmd);
+    
     pluginsTools::unIncLog($_eqLogic, 'DEBUG', 'Set comment for list');
   }   
   
   public function persistLog(&$_eqLogic) {
-    if (count($_eqLogic -> _log) > 0) {
+    if (count($_eqLogic -> getLog()) > 0) {
       $logMessage = '';
       $path =       null;
       
       if ($_eqLogic -> getConfiguration('logmode', 'default') == 'none')
         return;   
             
-      foreach ($_eqLogic -> _log as $keyDetail => $detailLog) {
+      foreach ($_eqLogic -> getLog() as $keyDetail => $detailLog) {
         if ($detailLog['typeLog'] == 'INC_LOG')
           $logMessage .= "\n".$_eqLogic -> waitCache($detailLog['log'][0]);
         else {
@@ -246,7 +252,7 @@ class pluginsToolsDepedency {
             else
               $logMessage .= "\n".$prefixLog.str_pad("", $detailLog['padLog']*3, " ").$log;
   
-            log::add($_eqLogic -> _className, $detailLog['typeLog'], str_pad("", $detailLog['padLog']*3, " ").$log);
+            log::add($_eqLogic -> getClassName(), $detailLog['typeLog'], str_pad("", $detailLog['padLog']*3, " ").$log);
           }
         }
       }
@@ -256,7 +262,7 @@ class pluginsToolsDepedency {
       else
         file_put_contents(pluginsTools::mkdirPath('pluginLog', 'plugin'.$_eqLogic -> getId()), $logMessage, FILE_APPEND);
     }
-    $_eqLogic -> _log = array();
+    $_eqLogic -> setLog();
   }
 
 	public function fullDataObject(&$_eqLogic, $_restrictSearch = array(), $_searchOnChildObject = true, $_onlyVisible = false) {
