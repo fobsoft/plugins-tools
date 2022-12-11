@@ -15,6 +15,10 @@
 * along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
 */
 
+abstract class pluginsToolsDepedencyConst {
+  const TypeLogPriority =  array('ND' => 0, 'DEBUG' => 1, 'INFO' => 1, 'WARNING' => 2, 'ERROR' => 3);
+}
+
 class pluginsToolsDepedency {
   public function purgeLog(&$_eqLogic) {
     $maxLineLog = config::byKey('maxLineLog', $_eqLogic -> getProtectedValue('className'), 5000);
@@ -135,14 +139,14 @@ class pluginsToolsDepedency {
                         'Display' =>        array('message_placeholder' => 'code', 'title_disable' => 1, 'showStatsOnmobile' => 0, 'showStatsOndashboard' => 0, 'invertBinary' => 0, 'icon' => ''))  
   */
   
-  public static function setCmdList(&$_eqLogic) {
+  public static function setCmdList(&$_eqLogic, $_listCmdToCreated = null) {
     pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG', 'Configuration de la liste des commandes');
     
     $eqLogicId =        $_eqLogic -> getId();
     $keyNotUpdated =    array('IsVisible', 'IsHistorized', 'Generic_type');
-    $listCmdToCreated = $_eqLogic -> getProtectedValue('listCmdToCreated', array());
+    $listCmdToCreated = isset($_listCmdToCreated)? $_listCmdToCreated:$_eqLogic -> getProtectedValue('listCmdToCreated', array());
     $orderCreationCmd = $_eqLogic -> getProtectedValue('orderCreationCmd');
-   
+    
     foreach ($listCmdToCreated as $logicalId => $configInfos) {      
       pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG', 'Commande '.$logicalId);
       pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG', 'Search commande '.$logicalId);
@@ -160,17 +164,18 @@ class pluginsToolsDepedency {
           pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','Search commande replace name '.$idReplace);
           $cmd = cmd::byEqLogicIdAndLogicalId($eqLogicId, $idReplace);
           if (is_object($cmd)) {
-            pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG','Comande found...');
+            pluginsToolsDepedency::addLog($_eqLogic, 'DEBUG','Comande found...');
             break;
           }
           else
-            pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG','Comande not found...');
+            pluginsToolsDepedency::addLog($_eqLogic, 'DEBUG','Comande not found...');
+          pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
         }
       }
       else
         pluginsToolsDepedency::addLog($_eqLogic, 'DEBUG','Comande found...');
       
-      pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG', 'Search commande '.$logicalId);
+      pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
 
       if (isset($configInfos)) {
         if (!is_object($cmd)) {
@@ -190,7 +195,10 @@ class pluginsToolsDepedency {
 
           if (isset($value)) {
             $key = ucfirst($key);
-            
+
+            if (!method_exists($cmd, 'set'.$key))
+               continue;
+               
             if (is_array($value)) {
               pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','set '.$key);
               foreach ($value as $arrKey => $arrValue) {
@@ -208,12 +216,13 @@ class pluginsToolsDepedency {
                   }
                 }
               }
-              pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG','set '.$key);
+              pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
             }
             else {
               if (in_array($key, $keyNotUpdated) && !$nbwCmd)
                 continue;
-          
+
+         
               if (strpos($value, '#') === false) {
                 pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','set '.$key.' with value:'.$value);
                 $cmd -> {'set'.$key}($value);
@@ -244,11 +253,27 @@ class pluginsToolsDepedency {
         $cmd -> remove();
     }
     
-    $_eqLogic -> setProtectedValue('listCmdToCreated', array());
+    if (!isset($_listCmdToCreated))
+      $_eqLogic -> setProtectedValue('listCmdToCreated', array());
+    
     $_eqLogic -> setProtectedValue('orderCreationCmd', $orderCreationCmd);
     
-    pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG', 'Set comment for list');
-  }   
+    pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
+  }
+  
+  public function mergeLog(&$_eqLogic, &$_service) {
+    pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG2');
+    
+    $typeLog = $_eqLogic -> getProtectedValue('typeLog');
+    foreach ($_service -> getProtectedValue('log') as $logKey => $logDetail) {
+      $typeLog = (pluginsToolsDepedencyConst::TypeLogPriority[$logDetail['typeLog']] > pluginsToolsDepedencyConst::TypeLogPriority[$typeLog])? $logDetail['typeLog']:$typeLog;
+      pluginsToolsDepedency::setLog($_eqLogic, $logDetail['typeLog'], $logDetail['log']);
+    }
+    $_eqLogic -> setProtectedValue('typeLog', $typeLog);
+    $_service -> setProtectedValue('log', array());
+    
+    pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG2');
+  }  
   
   public function persistLog(&$_eqLogic) {
     $logList = $_eqLogic -> getProtectedValue('log', array());
@@ -278,7 +303,7 @@ class pluginsToolsDepedency {
             else
               $logMessage .= "\n".$prefixLog.str_pad("", $detailLog['padLog']*3, " ").$log;
   
-            //log::add($_eqLogic -> getProtectedValue('className'), $detailLog['typeLog'], str_pad("", $detailLog['padLog']*3, " ").$log);
+            log::add($_eqLogic -> getProtectedValue('className'), $detailLog['typeLog'], str_pad("", $detailLog['padLog']*3, " ").$log);
           }
         }
       }
@@ -431,5 +456,13 @@ class pluginsToolsDepedency {
     
 		return $return;
 	}  
+
+  public function getElementConfig(&$_eqLogic, $_configName, $_configElementName, $_configElementValue) {
+    foreach ($_eqLogic -> getConfiguration($_configName) as $keyElement => $detailElement) {
+      if ($detailElement[$_configElementName] == $_configElementValue)
+        return $detailElement;
+    }
+    return array();
+  }
 }
 ?>
