@@ -69,7 +69,7 @@ class pluginsToolsDepedency {
       pluginsToolsDepedency::setLog($_eqLogic, $_typeLog, $_log, $_level);
   }
 
-  public static function setLog(&$_eqLogic, $_typeLog = '', $_log = '', $_level = '') {
+  public static function setLog(&$_eqLogic, $_typeLog = '', $_log = '', $_level = 'debug') {
     if ($_log != '') {
       $objCall = $_eqLogic -> getProtectedValue('objCall');
       if ($_eqLogic -> getProtectedValue('externalLog',0) != 0 && isset($objCall) && method_exists($objCall, 'addLog'))
@@ -159,21 +159,21 @@ class pluginsToolsDepedency {
       //}
       
       if (!is_object($cmd)) {
-        pluginsToolsDepedency::addLog($_eqLogic, 'DEBUG','Comande not found...');
+        pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Comande not found...');
         foreach ($configInfos['ListLogicalReplace'] as $idReplace) {
           pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','Search commande replace name '.$idReplace);
           $cmd = cmd::byEqLogicIdAndLogicalId($eqLogicId, $idReplace);
           if (is_object($cmd)) {
-            pluginsToolsDepedency::addLog($_eqLogic, 'DEBUG','Comande found...');
+            pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Comande found...');
             break;
           }
           else
-            pluginsToolsDepedency::addLog($_eqLogic, 'DEBUG','Comande not found...');
+            pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Comande not found...');
           pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
         }
       }
       else
-        pluginsToolsDepedency::addLog($_eqLogic, 'DEBUG','Comande found...');
+        pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Comande found...');
       
       pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
 
@@ -303,7 +303,7 @@ class pluginsToolsDepedency {
             else
               $logMessage .= "\n".$prefixLog.str_pad("", $detailLog['padLog']*3, " ").$log;
   
-            log::add($_eqLogic -> getProtectedValue('className'), $detailLog['typeLog'], str_pad("", $detailLog['padLog']*3, " ").$log);
+            //log::add($_eqLogic -> getProtectedValue('className'), $detailLog['typeLog'], str_pad("", $detailLog['padLog']*3, " ").$log);
           }
         }
       }
@@ -457,12 +457,45 @@ class pluginsToolsDepedency {
 		return $return;
 	}  
 
-  public function getElementConfig(&$_eqLogic, $_configName, $_configElementName, $_configElementValue) {
+  public function getElementConfig(&$_eqLogic, $_configName, $_configElementName = null, $_configElementValue = null) {
+    $result = array();
+    
     foreach ($_eqLogic -> getConfiguration($_configName) as $keyElement => $detailElement) {
-      if ($detailElement[$_configElementName] == $_configElementValue)
-        return $detailElement;
+      if (isset($_configElementValue)) {
+        if ($detailElement[$_configElementName] == $_configElementValue)
+          return $detailElement;
+      }
+      else {
+        if (isset($_configElementName))
+          $result[$detailElement[$_configElementName]] = $detailElement;
+        else
+          $result[] = $detailElement;
+      }
     }
-    return array();
+    return $result;
+  }
+  
+  public function createUniqueCron(&$_eqLogic, $_function, $_cronOption, $_schedule, $_setOnce = 1) {
+    $crons = cron::searchClassAndFunction('hydroQuebec', $_function, $_cronOption);
+
+    if (!is_array($crons) || count($crons) == 0) {
+      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Creation of cron'); 
+
+      $cron = new cron();
+      $cron->setClass('hydroQuebec');
+      $cron->setFunction($_function);
+      $cron->setOption($_cronOption);
+      $cron->setLastRun(date('Y-m-d H:i:s'));
+      $cron->setOnce(1);
+      $cron->setSchedule($_schedule);
+      $cron->save();
+    }
+    elseif (count($crons) == 1) {
+      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Re-schedule of cron'); 
+      
+      $cron->setSchedule(cron::convertDateToCron($_dateSchedule -> getTimestamp()));
+      $cron->save();
+    }
   }
 }
 ?>
