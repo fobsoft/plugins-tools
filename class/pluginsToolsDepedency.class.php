@@ -72,9 +72,10 @@ class pluginsToolsDepedency {
   public static function setLog(&$_eqLogic, $_typeLog = '', $_log = '', $_level = 'debug') {
     if ($_log != '') {
       $objCall = $_eqLogic -> getProtectedValue('objCall');
-      if ($_eqLogic -> getProtectedValue('externalLog',0) != 0 && isset($objCall) && method_exists($objCall, 'addLog'))
+
+      if ($_eqLogic -> getProtectedValue('externalLog',0) == 0 && isset($objCall) && is_object($objCall) && method_exists($objCall, 'addLog'))
         pluginsToolsDepedency::setLog($objCall, $_typeLog, $_log, $_level);
-      elseif ( method_exists($_eqLogic, 'addLog'))
+      elseif (method_exists($_eqLogic, 'addLog'))
         pluginsToolsDepedency::addLog($_eqLogic, $_typeLog, $_log, $_level);
     }
     return true;
@@ -200,7 +201,7 @@ class pluginsToolsDepedency {
                continue;
                
             if (is_array($value)) {
-              pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','set '.$key);
+              pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','set '.$key, 'debug');
               foreach ($value as $arrKey => $arrValue) {
                 if (isset($arrValue)) {
                   if (is_array($arrValue) || strpos($arrValue, '#') === false) {
