@@ -43,7 +43,7 @@ try {
 	}
   
   if (init('action') == 'emptyLog') {
-    file_put_contents(dirname(__FILE__) . '/../../../log/pluginLog/plugin'.init('id').'.log', "");
+    file_put_contents(dirname(__FILE__) . '/../../log/pluginLog/plugin'.init('id').'.log', "");
   }
 
 	throw new Exception(__('Aucune méthode correspondante à : ', __FILE__) . init('action'));
