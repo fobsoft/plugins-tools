@@ -24,8 +24,17 @@ if (!is_object($pluggin)) {
   throw new Exception(__('Aucun équipement ne correspondant à :', __FILE__) . ' ' . init('id'));
 }
 sendVarToJs('logId',    init('id'));
+sendVarToJs('eqType',   init('eqType'));
 ?>
-
+<style>
+  .label-info,
+  .label-success,
+  .label-warning,
+  .label-danger,
+  .label-info {
+    width: 50px;
+  }
+</style>
 <div style="display: none;width : 100%" id="div_alertLog"></div>
 <?php echo '<span style="font-weight: bold;">' . $pluggin->getHumanName(true, false, true) . '</span>'; ?>
 <div class="input-group pull-right">
@@ -42,6 +51,10 @@ sendVarToJs('logId',    init('id'));
 </div>
 <br/><br/>
 <pre id='preLog' class='pluggin-LogContents'></pre>
+
+<?php 
+include_file('core', 'pluginToolsDepedency', 'js'); 
+?>
 
 <script>
 var $rawLogCheck = $('#brutlogcheck')
@@ -77,6 +90,7 @@ $('#btLogEmpty').on('click', function() {
     url: 'core/ajax/pluginsToolsDepedency.ajax.php',
     data: {
       action: 'emptyLog',
+      eqType: eqType,
       id:     logId
     },
     dataType: 'json',

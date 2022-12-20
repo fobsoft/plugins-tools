@@ -109,6 +109,7 @@ function callFunct(_fctName, _defaultArguments, _arrayCallArguments) {
 
 // FUNCTION POUR L'AFFICHAGE DES LOGS
   if (isset(jeedom.log.colorScReplacement)) {
+    console.log("colorScReplacement: " + JSON.stringify(jeedom.log.colorScReplacement, null, 4));
     jeedom.log.colorScReplacement['Begin'] =                    {'txt': ' -- BEGIN',     'replace': '<strong> -- BEGIN : </strong>'}
     jeedom.log.colorScReplacement['End'] =                      {'txt': ' -- END',       'replace': '<strong> -- END : </strong>'}
 
@@ -224,7 +225,7 @@ function callFunct(_fctName, _defaultArguments, _arrayCallArguments) {
           log = jeedom.log.scenarioColorReplace(log)
           _params.display.html(log)
         } else {
-          log = jeedom.log.scenarioRemouveHtmlTag(log)
+          log = jeedom.log.remouveHtmlTag(log)
           _params.display.text(log)
         }
 
@@ -250,15 +251,15 @@ function callFunct(_fctName, _defaultArguments, _arrayCallArguments) {
   }
 
   jeedom.log.htmlTag = {
-    '<label class="warning" style="margin-bottom: 4px;" style="width: 48px;">': '',
-    '<label class="info" style="margin-bottom: 4px;" style="width: 48px;">': '',
-    '<label class="error" style="margin-bottom: 4px;" style="width: 48px;">': '',
-    '<label class="success" style="margin-bottom: 4px;" style="width: 48px;">': '',
-    '<label class="debug" style="margin-bottom: 4px;" style="width: 48px;">': '',
+    '<label class="warning" style="margin-bottom: 4px;">': '',
+    '<label class="info" style="margin-bottom: 4px;">': '',
+    '<label class="error" style="margin-bottom: 4px;">': '',
+    '<label class="success" style="margin-bottom: 4px;">': '',
+    '<label class="debug" style="margin-bottom: 4px;">': '',
     '</label>': ''
   }
 
-  jeedom.log.scenarioRemouveHtmlTag = function(_str) {
+  jeedom.log.remouveHtmlTag = function(_str) {
     for (var re in jeedom.log.htmlTag) {
       _str = _str.split(re).join(jeedom.log.htmlTag[re])
     }

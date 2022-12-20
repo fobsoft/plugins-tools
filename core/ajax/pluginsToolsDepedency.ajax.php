@@ -17,12 +17,14 @@
  */
 
 try {
-	require_once dirname(__FILE__) . '/../../../../core/php/core.inc.php';
+	require_once __DIR__ . '/../../core/php/core.inc.php';
 	include_file('core', 'authentification', 'php');
 
 	if (!isConnect()) {
 		throw new Exception(__('401 - Accès non autorisé', __FILE__));
 	}
+  
+  ajax::init();
 	
 	if (init('action') == 'eqLogicCopy') {
     if (($eqType = init('eqType')) == '')
@@ -41,7 +43,7 @@ try {
 	}
   
   if (init('action') == 'emptyLog') {
-    file_put_contents(dirname(__FILE__) . '/../../log/pluginLog/plugin'.init('id').'.log', "");
+    file_put_contents(dirname(__FILE__) . '/../../../log/pluginLog/plugin'.init('id').'.log', "");
   }
 
 	throw new Exception(__('Aucune méthode correspondante à : ', __FILE__) . init('action'));
