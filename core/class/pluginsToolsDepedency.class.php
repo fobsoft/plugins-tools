@@ -111,6 +111,8 @@ class pluginsToolsDepedency {
   }
   
   public static function setArrayLog(&$_eqLogic, $_typeLog, $_log, $_display = null, $_title = null, $_level = 'debug') {
+    $_display = !isset($_display)? '{value}':$_display;
+    
     if (count($_log)) {
       if ($_typeLog == 'ERROR')
         $_level = 'danger';
@@ -127,15 +129,12 @@ class pluginsToolsDepedency {
         pluginsToolsDepedency::incLog($_eqLogic, $_typeLog, $_title, $_level);
       
       foreach ($_log as $key => $row) {
-        if (isset($_display)) {
-          $logResult = $_display;
-          $logResult = str_replace('{key}', $key, $logResult);
+        $logResult = $_display;
+        $logResult = str_replace(['{key}','{value}'], [$key,(is_array($row)? json_encode($row, JSON_UNESCAPED_UNICODE):$row)], $logResult);
+        if (is_array($row)) {
           foreach ($row as $keyValue => $value)
             $logResult = str_replace('{'.$keyValue.'}', $value, $logResult);
         }
-        else
-          $logResult = is_array($row)? json_encode($row, JSON_UNESCAPED_UNICODE):$row;
-        
         pluginsToolsDepedency::setLog($_eqLogic, $_typeLog, $logResult, $_level);
       }
       
@@ -500,26 +499,114 @@ class pluginsToolsDepedency {
   }
   
   public function createUniqueCron(&$_eqLogic, $_function, $_cronOption, $_schedule, $_setOnce = 1) {
-    $crons = cron::searchClassAndFunction('hydroQuebec', $_function, $_cronOption);
+    $className =            $_eqLogic -> getProtectedValue('className');
+    $crons =                cron::searchClassAndFunction($className, $_function, $_cronOption);
+    $scheduleIsTimestamp =  ((string) (int) $_schedule === $_schedule) && ($_schedule <= PHP_INT_MAX) && ($_schedule >= ~PHP_INT_MAX);
 
     if (!is_array($crons) || count($crons) == 0) {
-      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Creation of cron'); 
+      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Creation of cron to '.$_schedule); 
 
       $cron = new cron();
-      $cron->setClass('hydroQuebec');
+      $cron->setClass($className);
       $cron->setFunction($_function);
       $cron->setOption($_cronOption);
       $cron->setLastRun(date('Y-m-d H:i:s'));
-      $cron->setOnce(1);
-      $cron->setSchedule($_schedule);
+      $cron->setOnce($_setOnce);
+      $cron->setSchedule($scheduleIsTimestamp? cron::convertDateToCron($_schedule):$_schedule);
       $cron->save();
     }
-    elseif (count($crons) == 1) {
-      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Re-schedule of cron'); 
+    else {
+      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Re-schedule of cron to '.$_schedule); 
       
-      $cron->setSchedule(cron::convertDateToCron($_dateSchedule -> getTimestamp()));
-      $cron->save();
+      $delete = false;
+      foreach ($crons as $cron) {
+        if (!$delete) {
+          $cron -> setSchedule($scheduleIsTimestamp? cron::convertDateToCron($_schedule):$_schedule);
+          $cron -> save();
+          $delete = true;
+        }
+        else
+          $cron -> remove();
+      }
     }
   }
+  
+  public static function getJeedomGenericType() {
+    $genericTypeConfig =  jeedom::getConfiguration('cmd::generic_type');
+    foreach (plugin::listPlugin(false, true, false, true) as $key => $plugin) {
+      if (method_exists($plugin, 'pluginGenericTypes'))
+        $genericTypeConfig = array_merge($genericTypeConfig, $plugin::pluginGenericTypes());
+    }
+    return $genericTypeConfig;
+  }
+  
+  public static function getGenericTypeConfiguration($_type = null) {
+    $genericTypeList =    array();
+    
+    foreach (pluginsToolsDepedency::getJeedomGenericType() as $generic_type_key => $generic_type_detail) {
+      if (isset($generic_type_detail['ignore']) && $generic_type_detail['ignore'] == true)
+        continue;
+      if (isset($_type) && $_type != 'all' && $generic_type_detail['type'] != $_type)
+        continue;
+      
+      if (!isset($genericTypeList[$generic_type_detail['family']])) {
+        $genericTypeList[$generic_type_detail['family']] = array('id' =>            $generic_type_detail['familyid'],
+                                                                 'family' =>        $generic_type_detail['family'],
+                                                                 'generiqueType' => array(),
+                                                                 'optgroupLabel' => '<optgroup label="{{' . $generic_type_detail['family'] . '}}">',
+                                                                 'userDefined' =>   isset($generic_type_detail['userDefined'])? 1:0);
+      }
+      $genericTypeList[$generic_type_detail['family']]['generiqueType'][$generic_type_detail['name']][] = array('familyid' =>    $generic_type_detail['familyid'],
+                                                                                                                'family' =>      $generic_type_detail['family'],
+                                                                                                                'key' =>         $generic_type_key,
+                                                                                                                'name' =>        $generic_type_detail['name'], 
+                                                                                                                'type' =>        $generic_type_detail['type'],
+                                                                                                                'subtype' =>     $generic_type_detail['subtype'],
+                                                                                                                'optLabel' =>    '<option value="' . $generic_type_key . '" #optLabelOption_'.$generic_type_key.'#>' .  $generic_type_detail['name'] . ($_type == 'all'? ' | ' . $generic_type_detail['type']:'') . '</option>',
+                                                                                                                'userDefined' => isset($generic_type_detail['userDefined'])? 1:0);
+    }
+    ksort($genericTypeList, SORT_STRING);
+
+    foreach ($genericTypeList as $family => $family_detail)
+      ksort($genericTypeList[$family]['generiqueType'], SORT_STRING);
+  
+    return $genericTypeList;
+  }
+
+  public static function genericTypeConfigurationToPromptOption($_type = null, $_includeNone = true) {
+    $_genericTypeList = pluginsToolsDepedency::getGenericTypeConfiguration($_type);
+
+    $return = array();
+    if ($_includeNone)
+      $return[] = array('text' => __('Aucun', __FILE__), 'value' => '');
+    
+    foreach ($_genericTypeList as $family => $family_detail) {
+      foreach ($family_detail['generiqueType'] as $generiqueTypeName) {
+        foreach ($generiqueTypeName as $generiqueTypedetail)
+          $return[] = array('text' => $generiqueTypedetail['name'] . ($_type == 'all'? ' | ' . $generiqueTypedetail['type']:''), 'value' => $generiqueTypedetail['key']);
+      }
+    }
+    
+    return $return;
+  }
+  
+  public static function genericTypeConfigurationToHtmlOption($_type = null, $_includeNone = true) {
+    $_genericTypeList = pluginsToolsDepedency::getGenericTypeConfiguration($_type);
+
+    $return = '';
+    if ($_includeNone)
+      $return .= '<option value="">' . __('Aucun', __FILE__) . '</option>';
+    
+    foreach ($_genericTypeList as $family => $family_detail) {
+      $return .= $family_detail['optgroupLabel'];
+      foreach ($family_detail['generiqueType'] as $generiqueTypeName) {
+        foreach ($generiqueTypeName as $generiqueTypedetail)
+          $return .= $generiqueTypedetail['optLabel'];
+      }
+      $return .= '</optgroup>';
+    }
+    
+    return $return;
+  }  
 }
 ?>
