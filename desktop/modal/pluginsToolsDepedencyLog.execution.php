@@ -32,7 +32,7 @@ sendVarToJs('eqType',   init('eqType'));
   .label-warning,
   .label-danger,
   .label-info {
-    width: 50px;
+    width: 55px;
   }
 </style>
 <div style="display: none;width : 100%" id="div_alertLog"></div>

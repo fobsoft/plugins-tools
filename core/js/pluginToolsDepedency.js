@@ -14,6 +14,8 @@
 * along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
 */
 
+var pluginsToolsDepedency =  function() {};
+
 // KEY DOWN
   document.onkeydown = function(event) {
     if (jeedomUtils.getOpenedModal()) return
@@ -65,6 +67,30 @@
     }
   });
   
+  // Ajouter un block
+  $('body').off('click','.bt_add').on('click','.bt_add',  function () {
+    const callFnct =            isset($(this).attr('data-callFnct'))?       $(this).attr('data-callFnct'):'';
+    const dataClosest =         isset($(this).attr('data-closest'))?        $(this).attr('data-closest'):'';
+    const dataType =            isset($(this).attr('data-type'))?           $(this).attr('data-type'):'';
+    const dataName =            isset($(this).attr('data-name'))?           $(this).attr('data-name'):'';
+    const dataExpAttName =      isset($(this).attr('data-expAttName'))?     $(this).attr('data-expAttName'):'expressionAttr';
+    const dataPromptMessage =   $(this).attr('data-promptMessage');
+    const el =                  (isset(dataClosest) && dataClosest != '')?  $(this).closest('.' + dataClosest):'';
+    
+    if (isset(dataPromptMessage)) {
+      bootbox.prompt(dataPromptMessage, function (result) {
+        if (result !== null && result != '') {
+          elem = { 
+                    name:       result                                           
+                 };
+          callFunct(callFnct, [dataType, dataName, el, dataExpAttName], [elem]);
+        }
+      });
+    }
+    else
+      callFunct(callFnct, [dataType, dataName, el, dataExpAttName], []);
+  });  
+  
   // Renommer un block
   $('body').off('click','.bt_rename').on('click','.bt_rename',  function () {
     var dataClosest =   $(this).attr('data-closest');
@@ -93,19 +119,68 @@
     });
   });  
 
+
+  // Ajouter une commande info
+  $('body').off('click','.listCmdInfo').on('click','.listCmdInfo', function () {
+    var dataClosest =   $(this).attr('data-closest');
+    var dataAttr =      $(this).attr('data-attr');
+    var dataL1key =     $(this).attr('data-filedL1key');
+    var dataL2key =     isset($(this).attr('data-filedL2key'))? $(this).attr('data-filedL2key'):'';
+    
+    if (dataL2key != '')
+      var el = $(this).closest('.' + dataClosest).find('.' + dataAttr + '[data-l1key=' + dataL1key + '][data-l2key=' + dataL2key + ']');
+    else
+      var el = $(this).closest('.' + dataClosest).find('.' + dataAttr + '[data-l1key=' + dataL1key + ']');
+    
+    jeedom.cmd.getSelectModal({cmd: {type: 'info'}}, function (result) {
+      if (el.attr('data-concat') == 1) {
+        el.atCaret('insert', result.human);
+      } 
+      else {
+        el.value(result.human);
+      }
+    });
+  });  
+  
 // AJOUTER UN BLOCK DE CONFIGURATION D'UN EQUIPEMENT
 function callFunct(_fctName, _defaultArguments, _arrayCallArguments) {
   var fn = window[_fctName];
   if (typeof fn !== 'function')
     return;
 
-  if (_arrayCallArguments.length > 0) {
+  if (isset(_arrayCallArguments) && _arrayCallArguments.length > 0) {
     for (var i in _arrayCallArguments)
       fn.apply(window, _defaultArguments.concat([_arrayCallArguments[i]]));
   }
   else
     fn.apply(window, _defaultArguments);
-} 
+}
+
+pluginsToolsDepedency.callFunct = function(_fctName, _defaultArguments, _arrayCallArguments) {
+  var fn = window[_fctName];
+  if (typeof fn !== 'function')
+    return;
+
+  if (isset(_arrayCallArguments) && _arrayCallArguments.length > 0) {
+    for (var i in _arrayCallArguments)
+      fn.apply(window, _defaultArguments.concat([_arrayCallArguments[i]]));
+  }
+  else
+    fn.apply(window, _defaultArguments);
+}
+
+pluginsToolsDepedency.setDivBlock = function(_type, _el, _expressionAttr, _elem, div) {
+  if (typeof _el === 'object' && _el !== null) {
+    console.log("setDivBlock: first");
+    _el.find('.div_' + _type).append(div);
+    _el.find('.' + _type).last().setValues(_elem, '.' + _expressionAttr);    
+  } 
+  else {
+    console.log("setDivBlock: second");
+    $('#div_' + _type).append(div);
+    $('#div_' + _type + ' .' + _type).last().setValues(_elem, '.' + _expressionAttr);
+  } 
+}  
 
 // FUNCTION POUR L'AFFICHAGE DES LOGS
   if (isset(jeedom.log.colorScReplacement)) {
@@ -251,11 +326,11 @@ function callFunct(_fctName, _defaultArguments, _arrayCallArguments) {
   }
 
   jeedom.log.htmlTag = {
-    '<label class="warning" style="margin-bottom: 4px;">': '',
-    '<label class="info" style="margin-bottom: 4px;">': '',
-    '<label class="error" style="margin-bottom: 4px;">': '',
-    '<label class="success" style="margin-bottom: 4px;">': '',
-    '<label class="debug" style="margin-bottom: 4px;">': '',
+    '<label class="warning" style="margin-bottom: 0px;">': '',
+    '<label class="info"    style="margin-bottom: 0px;">': '',
+    '<label class="error"   style="margin-bottom: 0px;">': '',
+    '<label class="success" style="margin-bottom: 0px;">': '',
+    '<label class="debug"   style="margin-bottom: 0px;">': '',
     '</label>': ''
   }
 
