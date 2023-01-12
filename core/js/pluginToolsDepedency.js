@@ -46,24 +46,41 @@ var pluginsToolsDepedency =  function() {};
     }).load('index.php?v=d&p=dashboard&modal=pluginsToolsDepedencyLog.execution&eqType=' + eqType + '&id=' + $('.eqLogicAttr[data-l1key=id]').value()).dialog('open')
   })
   
+  // Choisir un icon
+  $("body").off('click','.bt_chooseIcon').on('click','.bt_chooseIcon',function () {
+    var dataClosest = $(this).attr('data-closest');
+    var dataL1key =   $(this).attr('data-filedL1key');
+    var dataAtt =     $(this).attr('data-attr');
+    var el = $(this).closest('.' + dataClosest).find('.' + dataAtt + '[data-l1key=' + dataL1key + ']');
+    chooseIcon(function (_icon) {
+      el.empty().append(_icon);
+    });
+  });  
+  
   // Effacer un block
   $("body").off('click','.bt_remove').on('click','.bt_remove',function () {
-    var dataMsg =       $(this).attr('data-msg');
-    var dataLiClosest = $(this).attr('data-li-closest');
-    var dataClosest =   $(this).attr('data-closest');
-    var dataConfirm =   $(this).attr('data-confirm');
-    var confirmRemove = true;
+    const dataMsg =       $(this).attr('data-msg');
+    const dataLiClosest = $(this).attr('data-li-closest');
+    const dataClosest =   $(this).attr('data-closest');
+    const dataConfirm =   $(this).attr('data-confirm');
+    const el =            $(this);
+    const confirmRemove = true;
     
     if (isset(dataConfirm) && isset(dataMsg) && dataConfirm == 1) {
       bootbox.confirm(dataMsg, function (result) {
-        confirmRemove = (result !== null);
+        if (result !== null) {
+          if (result) {
+            if (isset(dataLiClosest))
+              $(dataLiClosest).remove();
+            el.closest('.' + dataClosest).remove();
+          }
+        }
       });
     }
-    
-    if (confirmRemove) {
+    else {
       if (isset(dataLiClosest))
         $(dataLiClosest).remove();
-      $(this).closest('.' + dataClosest).remove();
+      el.closest('.' + dataClosest).remove();
     }
   });
   
@@ -119,7 +136,6 @@ var pluginsToolsDepedency =  function() {};
     });
   });  
 
-
   // Ajouter une commande info
   $('body').off('click','.listCmdInfo').on('click','.listCmdInfo', function () {
     var dataClosest =   $(this).attr('data-closest');
@@ -139,6 +155,48 @@ var pluginsToolsDepedency =  function() {};
       else {
         el.value(result.human);
       }
+    });
+  });
+  
+  // Ajouter une commande action
+  $('body').off('click','.listCmdAction').on('click','.listCmdAction', function () {
+    var dataClosest =   $(this).attr('data-closest');
+    var dataAttr =      $(this).attr('data-attr');
+    var dataL1key =     $(this).attr('data-filedL1key');
+    var dataL2key =     isset($(this).attr('data-filedL2key'))? $(this).attr('data-filedL2key'):'';
+    
+    if (dataL2key != '')
+      var el = $(this).closest('.' + dataClosest).find('.' + dataAttr + '[data-l1key=' + dataL1key + '][data-l2key=' + dataL2key + ']');
+    else
+      var el = $(this).closest('.' + dataClosest).find('.' + dataAttr + '[data-l1key=' + dataL1key + ']');
+    
+    jeedom.cmd.getSelectModal({cmd: {type: 'action'}}, function (result) {
+      el.value(result.human);
+      jeedom.cmd.displayActionOption(el.value(), '', function (html) {
+        el.closest('.' + dataClosest).find('.actionOptions').html(html);
+        taAutosize();
+      });      
+    });
+  });
+
+  // Ajouter un mot clee
+  $("body").off('click','.listAction').on('click','.listAction',  function () {
+    var dataClosest =   $(this).attr('data-closest');
+    var dataAttr =      $(this).attr('data-attr');
+    var dataL1key =     $(this).attr('data-filedL1key');
+    var dataL2key =     isset($(this).attr('data-filedL2key'))? $(this).attr('data-filedL2key'):'';
+    
+    if (dataL2key != '')
+      var el = $(this).closest('.' + dataClosest).find('.' + dataAttr + '[data-l1key=' + dataL1key + '][data-l2key=' + dataL2key + ']');
+    else
+      var el = $(this).closest('.' + dataClosest).find('.' + dataAttr + '[data-l1key=' + dataL1key + ']');
+    
+    jeedom.getSelectActionModal({}, function (result) {
+      el.value(result.human);
+      jeedom.cmd.displayActionOption(el.value(), '', function (html) {
+        el.closest('.' + dataClosest).find('.actionOptions').html(html);
+        taAutosize();
+      });
     });
   });  
   
@@ -181,6 +239,55 @@ pluginsToolsDepedency.setDivBlock = function(_type, _el, _expressionAttr, _elem,
     $('#div_' + _type + ' .' + _type).last().setValues(_elem, '.' + _expressionAttr);
   } 
 }  
+
+// SELECTIONNER UN TYPE GENERIC
+pluginsToolsDepedency.getSelectGenericType = function(_options, _callback) {
+  var modalNameDialogBox = "#mod_insert" + _options.source;
+  
+  if ($("#mod_insert" + _options.source).length != 0) {
+      $(modalNameDialogBox).remove();
+  }
+  
+  if ($(modalNameDialogBox).length == 0) {
+    $('body').append('<div id="mod_insert' + _options.source + '" title="' + _options.title + '" ></div>');
+    $(modalNameDialogBox).dialog({
+      closeText: '',
+      autoOpen: false,
+      modal: true,
+      height: 310,
+      width: 800
+    });
+    jQuery.ajaxSetup({
+      async: false
+    });
+    var url = 'index.php?v=d&plugin=advancedScenario&modal=' + _options.source + '.insert&type=' + _options.type + "&funct=" + _options.funct + '&object=' + 1
+    $(modalNameDialogBox).load(url);
+    jQuery.ajaxSetup({
+        async: true
+    });
+    mod_function.setOptions(_options);
+  }
+  
+  $(modalNameDialogBox).dialog('option', 'buttons', {
+    "{{Annuler}}": function() { 
+      $(this).dialog("close"); 
+    },
+    "{{Valider}}": function() {
+        var retour = {};
+        retour.action =           {};
+        retour.human =            mod_function.getValue();
+        retour.genericType =      mod_function.getGenericTypeId();
+        retour.genericHumanName = mod_function.getGenericHumanName();
+        retour.objectId =         mod_function.getObjectId();
+        retour.objectHumanName =  mod_function.getObjectHumanName();
+        if ($.trim(retour) != '' && 'function' == typeof(_callback)) {
+          _callback(retour);
+        }
+        $(this).dialog('close');
+    }
+  });
+  $(modalNameDialogBox).dialog('open');
+}
 
 // FUNCTION POUR L'AFFICHAGE DES LOGS
   if (isset(jeedom.log.colorScReplacement)) {

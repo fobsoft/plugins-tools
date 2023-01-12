@@ -21,6 +21,7 @@ abstract class pluginsToolsDepedencyConst {
 
 class pluginsToolsDepedency {
   public function purgeLog(&$_eqLogic) {
+    /*
     $maxLineLog = config::byKey('maxLineLog', $_eqLogic -> getProtectedValue('className'), 5000);
     $path =       dirname(__FILE__) . '/../../../../log/pluginLog/plugin' . $_eqLogic -> getId() . '.log';
 
@@ -33,6 +34,7 @@ class pluginsToolsDepedency {
       }
     }
     pluginsToolsDepedency::persistLog($_eqLogic);
+    */
   }  
 
   public static function mkdirPath(&$_eqLogic, $_dirName, $_fileName) {
