@@ -29,7 +29,7 @@ var pluginsToolsDepedency =  function() {};
     }
 
     if ((event.ctrlKey || event.metaKey) && event.which == 76) { //l
-      console.log("show log");
+      //console.log("show log");
       event.preventDefault()
       if ($('#btShowLog').is(':visible')) {
         $('#md_modal').dialog({title: "{{Log d'exécution}}"}).load('index.php?v=d&p=dashboard&modal=pluginsToolsDepedencyLog.execution&eqType=' + eqType + '&id=' + $('.eqLogicAttr[data-l1key=id]').value()).dialog('open')
@@ -92,40 +92,72 @@ var pluginsToolsDepedency =  function() {};
     const dataName =            isset($(this).attr('data-name'))?           $(this).attr('data-name'):'';
     const dataExpAttName =      isset($(this).attr('data-expAttName'))?     $(this).attr('data-expAttName'):'expressionAttr';
     const dataPromptMessage =   $(this).attr('data-promptMessage');
+    const formatFnct =          $(this).attr('data-formatFnct');
     const el =                  (isset(dataClosest) && dataClosest != '')?  $(this).closest('.' + dataClosest):'';
     
     if (isset(dataPromptMessage)) {
       bootbox.prompt(dataPromptMessage, function (result) {
         if (result !== null && result != '') {
-          elem = { 
-                    name:       result                                           
-                 };
-          callFunct(callFnct, [dataType, dataName, el, dataExpAttName], [elem]);
+          //console.log("bt_add " + result);
+          if (isset(formatFnct)) {
+            result = pluginsToolsDepedency.callFunct(formatFnct, [result]);
+          }
+          //console.log("bt_add " + result);
+          if (result != '') {
+            elem = { 
+                    name: result                                           
+                   };
+            pluginsToolsDepedency.callFunct(callFnct, [dataType, dataName, el, dataExpAttName], [elem]);
+          }
         }
       });
     }
     else
-      callFunct(callFnct, [dataType, dataName, el, dataExpAttName], []);
+      pluginsToolsDepedency.callFunct(callFnct, [dataType, dataName, el, dataExpAttName]);
+  });
+
+  $('body').off('click','.bt_addGenericTypeTrigger').on('click','.bt_addGenericTypeTrigger',  function () {
+    const callFnct =            isset($(this).attr('data-callFnct'))?       $(this).attr('data-callFnct'):'';
+    const dataClosest =         isset($(this).attr('data-closest'))?        $(this).attr('data-closest'):'';
+    const dataType =            isset($(this).attr('data-type'))?           $(this).attr('data-type'):'';
+    const dataSubType =         isset($(this).attr('data-subType'))?        $(this).attr('data-subType'):'';
+    const dataName =            isset($(this).attr('data-name'))?           $(this).attr('data-name'):'';
+    const dataExpAttName =      isset($(this).attr('data-expAttName'))?     $(this).attr('data-expAttName'):'expressionAttr';
+    const el =                  (isset(dataClosest) && dataClosest != '')?  $(this).closest('.' + dataClosest):'';
+    
+    pluginsToolsDepedency.getSelectGenericType(
+      {
+        source: 'GenericType', 
+        title:  '{{Sélectionner un type générique}}', 
+        type:   dataSubType
+      }, 
+      function(result) {
+        pluginsToolsDepedency.callFunct(callFnct, [dataType, dataName, el, dataExpAttName], [result]);
+      }
+    )  
   });  
   
   // Renommer un block
   $('body').off('click','.bt_rename').on('click','.bt_rename',  function () {
-    var dataClosest =   $(this).attr('data-closest');
-    var formatFnct =    $(this).attr('data-formatFnct');
-    var el =            $(this);
-    bootbox.prompt("{{Nouveau nom ?}}", function (result) {
+    const dataClosest =         $(this).attr('data-closest');
+    const dataPromptMessage =   isset($(this).attr('data-promptMessage'))?  $(this).attr('data-promptMessage'):'{{Nouveau nom ?}}';
+    const dataExpAttName =      isset($(this).attr('data-expAttName'))?     $(this).attr('data-expAttName'):'expressionAttr';
+    const dataL1key =           $(this).attr('data-filedL1key');
+    const formatFnct =          $(this).attr('data-formatFnct');
+    const el =                  $(this);
+    bootbox.prompt(dataPromptMessage, function (result) {
       if (result !== null && result != '') {
         var previousName = el.text();
-        
+        //console.log("bt_rename " + result);
         if (isset(formatFnct)) {
-          result = callFunct(formatFnct, [result], {});
+          result = pluginsToolsDepedency.callFunct(formatFnct, [result]);
         }
-        
+        //console.log("bt_rename " + result);
         if (result != '') {
           el.text(result);
           el.closest('.panel.panel-default').find('span.name').text(result);
-          if (el.hasClass('zoneAttr')) {
-            $('.modeAttr[data-l1key=' + dataClosest + ']').each(function () {
+          if (el.hasClass(dataExpAttName)) {
+            $('.' + dataExpAttName + '[data-l1key=' + dataL1key + ']').each(function () {
               if ($(this).text() == previousName) {
                 $(this).text(result);
               }
@@ -200,41 +232,44 @@ var pluginsToolsDepedency =  function() {};
     });
   });  
   
-// AJOUTER UN BLOCK DE CONFIGURATION D'UN EQUIPEMENT
-function callFunct(_fctName, _defaultArguments, _arrayCallArguments) {
+
+pluginsToolsDepedency.callFunct = function(_fctName, _defaultArguments, _arrayCallArguments, _checkArrayValueExist = null) {
+  var returnValue = '';
   var fn = window[_fctName];
   if (typeof fn !== 'function')
     return;
-
-  if (isset(_arrayCallArguments) && _arrayCallArguments.length > 0) {
-    for (var i in _arrayCallArguments)
-      fn.apply(window, _defaultArguments.concat([_arrayCallArguments[i]]));
+  
+  //console.log("_arrayCallArguments " + _fctName);
+  if (isset(_arrayCallArguments) || isset(_checkArrayValueExist)) {
+    //console.log("_arrayCallArguments t2");
+    if (isset(_arrayCallArguments)) {
+      //console.log("_arrayCallArguments t3");
+      for (var i in _arrayCallArguments) {
+        //console.log("_arrayCallArguments t4");
+        if (!isset(_checkArrayValueExist)
+            || (isset(_arrayCallArguments[i][_checkArrayValueExist]) && _arrayCallArguments[i][_checkArrayValueExist] != '')
+           ) {
+          //console.log("_arrayCallArguments t5");
+          returnValue = fn.apply(window, _defaultArguments.concat([_arrayCallArguments[i]]));
+        }
+        //console.log("_arrayCallArguments t6");
+      }
+    }
   }
   else
-    fn.apply(window, _defaultArguments);
-}
-
-pluginsToolsDepedency.callFunct = function(_fctName, _defaultArguments, _arrayCallArguments) {
-  var fn = window[_fctName];
-  if (typeof fn !== 'function')
-    return;
-
-  if (isset(_arrayCallArguments) && _arrayCallArguments.length > 0) {
-    for (var i in _arrayCallArguments)
-      fn.apply(window, _defaultArguments.concat([_arrayCallArguments[i]]));
-  }
-  else
-    fn.apply(window, _defaultArguments);
+    returnValue = fn.apply(window, _defaultArguments);
+  
+  return returnValue;
 }
 
 pluginsToolsDepedency.setDivBlock = function(_type, _el, _expressionAttr, _elem, div) {
   if (typeof _el === 'object' && _el !== null) {
-    console.log("setDivBlock: first");
+    //console.log("setDivBlock: first " + _type + "," + _expressionAttr);
     _el.find('.div_' + _type).append(div);
     _el.find('.' + _type).last().setValues(_elem, '.' + _expressionAttr);    
   } 
   else {
-    console.log("setDivBlock: second");
+    //console.log("setDivBlock: second " + _type + "," + _expressionAttr);
     $('#div_' + _type).append(div);
     $('#div_' + _type + ' .' + _type).last().setValues(_elem, '.' + _expressionAttr);
   } 
@@ -291,7 +326,7 @@ pluginsToolsDepedency.getSelectGenericType = function(_options, _callback) {
 
 // FUNCTION POUR L'AFFICHAGE DES LOGS
   if (isset(jeedom.log.colorScReplacement)) {
-    console.log("colorScReplacement: " + JSON.stringify(jeedom.log.colorScReplacement, null, 4));
+    //console.log("colorScReplacement: " + JSON.stringify(jeedom.log.colorScReplacement, null, 4));
     jeedom.log.colorScReplacement['Begin'] =                    {'txt': ' -- BEGIN',     'replace': '<strong> -- BEGIN : </strong>'}
     jeedom.log.colorScReplacement['End'] =                      {'txt': ' -- END',       'replace': '<strong> -- END : </strong>'}
 
@@ -308,11 +343,11 @@ pluginsToolsDepedency.getSelectGenericType = function(_options, _callback) {
       _params.callNumber = 0
     }
     if (!isset(_params.log)) {
-      console.log('[jeedom.log.autoupdate] No logfile')
+      //console.log('[jeedom.log.autoupdate] No logfile')
       return
     }
     if (!isset(_params.display)) {
-      console.log('[jeedom.log.autoupdate] No display')
+      //console.log('[jeedom.log.autoupdate] No display')
       return
     }
     if (!_params['display'].is(':visible')) {
