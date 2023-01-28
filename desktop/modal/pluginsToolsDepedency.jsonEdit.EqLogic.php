@@ -42,7 +42,7 @@ include_file('3rdparty', 'codemirror/addon/fold/foldgutter', 'css');
 ?>
 
 <div id="div_alertJsonEdit" data-modalType="md_JsonEdit"></div>
-<a class="btn btn-success btn-sm pull-right" id="bt_saveConfig"><i class="fas fa-check-circle"></i> {{Sauvegarder}}</a>
+<!--<a class="btn btn-success btn-sm pull-right" id="bt_saveConfig"><i class="fas fa-check-circle"></i> {{Sauvegarder}}</a>-->
 <br/><br/>
 <textarea id="ta_JsonEdit">
   <?php
@@ -82,38 +82,22 @@ include_file('3rdparty', 'codemirror/addon/fold/foldgutter', 'css');
       $('#div_alertJsonEdit').showAlert({message: '{{Champs json invalide}}', level: 'danger'})
       return
     }
-
+    
+    var _params = {
+      type:       jeephp2js.md_eqLogicJsonEdit_scEqType,
+      id :        jeephp2js.md_eqLogicJsonEdit_scId,
+      eqLogics :  json_decode(fileEditor.getValue())
+    };
+    console.log("_params: " + JSON.stringify(_params, null, 4));
     jeedom.eqLogic.save({
       type:       jeephp2js.md_eqLogicJsonEdit_scEqType,
       id :        jeephp2js.md_eqLogicJsonEdit_scId,
-      eqLogics:   json_decode(fileEditor.getValue()),
+      eqLogics :  fileEditor.getValue(),
       error: function(error) {
-        $('#div_alertJsonEdit').showAlert({message: error.message, level: 'danger'})
+        $('#div_alertJsonEdit').showAlert({message: error.message + 'test', level: 'danger'})
       },
       success: function(data) {
         $('#div_alertJsonEdit').showAlert({message: '{{Sauvegarde réussie}}', level: 'success'})
-        modifyWithoutSave = false
-        var vars = getUrlVars()
-        var url = 'index.php?'
-        for (var i in vars) {
-          if (i != 'id' && i != 'saveSuccessFull' && i != 'removeSuccessFull') {
-            url += i + '=' + vars[i].replace('#', '') + '&'
-          }
-        }
-
-        var id
-        if (Array.isArray(data)) {
-          id = data[0].id
-        } else {
-          id = data.id
-        }
-        url += 'id=' + id + '&saveSuccessFull=1'
-
-        if (document.location.toString().match('#')) {
-          url += '#' + document.location.toString().split('#')[1]
-        }
-        jeedomUtils.loadPage(url)
-        modifyWithoutSave = false
       }
     })
   })
