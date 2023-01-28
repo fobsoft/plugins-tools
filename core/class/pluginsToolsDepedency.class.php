@@ -183,11 +183,12 @@ class pluginsToolsDepedency {
     $orderCreationCmd = $_eqLogic -> getProtectedValue('orderCreationCmd');
     
     foreach ($listCmdToCreated as $logicalId => $configInfos) {      
-      pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG', 'Commande '.$logicalId);
+      pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG', 'Commande '.$logicalId.' => '.json_encode($configInfos));
       pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG', 'Search commande '.$logicalId);
       
-      $nbwCmd = false;
-      $cmd = cmd::byEqLogicIdAndLogicalId($eqLogicId, $logicalId);// $_eqLogic -> getCmd(null, $logicalId);
+      $defaultValue = null;
+      $newCmd =       false;
+      $cmd =          cmd::byEqLogicIdAndLogicalId($eqLogicId, $logicalId);// $_eqLogic -> getCmd(null, $logicalId);
       //if (!is_object($cmd)) {
       //  pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','Comande not found, search commande by name:'.$configInfos['Name']);
       //  $cmd = cmd::byEqLogicIdCmdName($eqLogicId, $configInfos['Name']);
@@ -215,7 +216,7 @@ class pluginsToolsDepedency {
       if (isset($configInfos)) {
         if (!is_object($cmd)) {
           pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','Create '.$logicalId.' cmd on eqLogicId '.$eqLogicId);
-          $nbwCmd = true;
+          $newCmd = true;
           $cmd = new cmd();
         }
         else
@@ -224,6 +225,11 @@ class pluginsToolsDepedency {
         $cmd -> setEqLogic_id($eqLogicId);
         $cmd -> setLogicalId($logicalId);
         
+        if (isset($configInfos['Configuration']['value'])) {
+          $defaultValue = $configInfos['Configuration']['value'];
+          unset($configInfos['Configuration']['value']);
+        }
+        
         foreach ($configInfos as $key => $value) {
           if ($key == 'ListLogicalReplace')
             continue;
@@ -231,8 +237,10 @@ class pluginsToolsDepedency {
           if (isset($value)) {
             $key = ucfirst($key);
 
-            if (!method_exists($cmd, 'set'.$key))
-               continue;
+            if (!method_exists($cmd, 'set'.$key)) {
+              pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','method set'.$key.' n\'existe pas', 'debug');
+              continue;
+            }
                
             if (is_array($value)) {
               pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','set '.$key, 'debug');
@@ -243,7 +251,7 @@ class pluginsToolsDepedency {
                     $cmd -> {'set'.$key}($arrKey, $arrValue);
                   }
                   else {
-                    if (isset($keyNotUpdated[$key]) && in_array($arrKey, $keyNotUpdated[$key]) && !$nbwCmd)
+                    if (isset($keyNotUpdated[$key]) && in_array($arrKey, $keyNotUpdated[$key]) && !$newCmd)
                       continue;
                     
                     pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','set'.$$arrKey.' with value:'.$listCmdToCreated[str_replace('#', '', $arrValue)]['id']);
@@ -254,7 +262,7 @@ class pluginsToolsDepedency {
               pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
             }
             else {
-              if (in_array($key, $keyNotUpdated) && !$nbwCmd)
+              if (in_array($key, $keyNotUpdated) && !$newCmd)
                 continue;
 
          
@@ -277,8 +285,8 @@ class pluginsToolsDepedency {
 
         pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
 
-        if (isset($configInfos['Configuration']['value']) && $configInfos['Configuration']['value'] != '' && $configInfos['Type'] == 'info')
-          $cmd -> event($configInfos['Configuration']['value']);
+        if ($newCmd && isset($defaultValue) && $configInfos['Type'] == 'info')
+          $_eqLogic -> checkAndUpdateCmd($logicalId, $defaultValue);        //$cmd -> event($defaultValue);
         
         pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
         

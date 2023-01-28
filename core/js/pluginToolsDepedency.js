@@ -14,37 +14,41 @@
 * along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
 */
 
+//console.log("colorScReplacement: " + JSON.stringify(jeedom.log.colorScReplacement, null, 4));
+
 var pluginsToolsDepedency =  function() {};
 
 // KEY DOWN
   document.onkeydown = function(event) {
     if (jeedomUtils.getOpenedModal()) return
 
-    if ((event.ctrlKey || event.metaKey) && event.which == 83) { //s
-      event.preventDefault()
-      if ($('.eqLogicAction[data-action=save]').is(':visible')) {
-        $(".eqLogicAction[data-action=save]").click()
-        return
+    //if ((event.ctrlKey || event.metaKey)) {
+    if (event.ctrlKey) {
+      event.preventDefault();
+      
+      switch (event.which) {
+        case 83:  pluginsToolsDepedency.saveEqLogic();        // s
+                  break;
+        case 76:  pluginsToolsDepedency.showLog();            // l
+                  break;
+        case 69:  pluginsToolsDepedency.jsonEditEqLogic();    // e
+                  break;
       }
-    }
 
-    if ((event.ctrlKey || event.metaKey) && event.which == 76) { //l
-      //console.log("show log");
-      event.preventDefault()
-      if ($('#btShowLog').is(':visible')) {
-        $('#md_modal').dialog({title: "{{Log d'exécution}}"}).load('index.php?v=d&p=dashboard&modal=pluginsToolsDepedencyLog.execution&eqType=' + eqType + '&id=' + $('.eqLogicAttr[data-l1key=id]').value()).dialog('open')
-        return
-      }      
+      return
     }
   }
   
 // EQUIPEMENT GENERIC FUNCTION
   // Affichage des log
   $('.eqLogicAction[data-action=showLog]').off('click').on('click', function() {
-    $('#md_modal').dialog({
-      title: "{{Log d'exécution}}"
-    }).load('index.php?v=d&p=dashboard&modal=pluginsToolsDepedencyLog.execution&eqType=' + eqType + '&id=' + $('.eqLogicAttr[data-l1key=id]').value()).dialog('open')
+    pluginsToolsDepedency.showLog();
   })
+
+  
+  $('.eqLogicAction[data-action=editJsonEqLogic]').off('click').on('click', function() {
+    pluginsToolsDepedency.jsonEditEqLogic();
+  })  
   
   // Choisir un icon
   $("body").off('click','.bt_chooseIcon').on('click','.bt_chooseIcon',function () {
@@ -94,8 +98,18 @@ var pluginsToolsDepedency =  function() {};
     const dataPromptMessage =   $(this).attr('data-promptMessage');
     const formatFnct =          $(this).attr('data-formatFnct');
     const el =                  (isset(dataClosest) && dataClosest != '')?  $(this).closest('.' + dataClosest):'';
-    
+        
     if (isset(dataPromptMessage)) {
+/* multiple input
+bootbox.confirm("<form id='infos' action=''>\
+    First name:<input type='text' name='first_name' /><br/>\
+    Last name:<input type='text' name='last_name' />\
+    </form>", function(result) {
+        if(result)
+            $('#infos').submit();
+});
+*/
+      
       bootbox.prompt(dataPromptMessage, function (result) {
         if (result !== null && result != '') {
           //console.log("bt_add " + result);
@@ -139,30 +153,52 @@ var pluginsToolsDepedency =  function() {};
   
   // Renommer un block
   $('body').off('click','.bt_rename').on('click','.bt_rename',  function () {
-    const dataClosest =         $(this).attr('data-closest');
-    const dataPromptMessage =   isset($(this).attr('data-promptMessage'))?  $(this).attr('data-promptMessage'):'{{Nouveau nom ?}}';
-    const dataExpAttName =      isset($(this).attr('data-expAttName'))?     $(this).attr('data-expAttName'):'expressionAttr';
-    const dataL1key =           $(this).attr('data-filedL1key');
-    const formatFnct =          $(this).attr('data-formatFnct');
-    const el =                  $(this);
-    bootbox.prompt(dataPromptMessage, function (result) {
-      if (result !== null && result != '') {
-        var previousName = el.text();
-        //console.log("bt_rename " + result);
+    var dataClosest =         $(this).attr('data-closest');
+    var dataPromptMessage =   isset($(this).attr('data-promptMessage'))?  $(this).attr('data-promptMessage'):'{{Nouveau nom ?}}';
+    var dataExpAttName =      isset($(this).attr('data-expAttName'))?     $(this).attr('data-expAttName'):'expressionAttr';
+    var dataL1key =           isset($(this).attr('data-filedL1key'))?     $(this).attr('data-filedL1key'):'';
+    var dataL2key =           isset($(this).attr('data-filedL2key'))?     $(this).attr('data-filedL2key'):'';
+    var formatFnct =          $(this).attr('data-formatFnct');
+    var el =                  $(this);
+    var previousValue =       $(this).text();
+    
+    bootbox.confirm("<form class='bootbox-form'>\<br/>\
+                        " + dataPromptMessage + "<br/>\
+                        <input class='bootbox-input bootbox-input-text form-control' autocomplete='off' type='text' data-l1key='fieldValue' value='" + previousValue + "' />\
+                     </form>", function(result) {
+      if (result) {
+        var fieldValue = $('.bootbox-confirm').find('[data-l1key=fieldValue]').val();
+
+        //console.log("bt_rename " + fieldValue);
         if (isset(formatFnct)) {
-          result = pluginsToolsDepedency.callFunct(formatFnct, [result]);
+          fieldValue = pluginsToolsDepedency.callFunct(formatFnct, [fieldValue]);
         }
-        //console.log("bt_rename " + result);
-        if (result != '') {
-          el.text(result);
-          el.closest('.panel.panel-default').find('span.name').text(result);
+        //console.log("bt_rename " + fieldValue);
+        if (fieldValue != '') {
+          el.text(fieldValue);
+          
+          /* A changer pour le prochain */
+          el.closest('.panel.panel-default').find('span.name').text(fieldValue);
           if (el.hasClass(dataExpAttName)) {
             $('.' + dataExpAttName + '[data-l1key=' + dataL1key + ']').each(function () {
-              if ($(this).text() == previousName) {
-                $(this).text(result);
+              if ($(this).text() == previousValue) {
+                $(this).text(fieldValue);
               }
             });
           }
+          
+          if (dataL1key != '') {
+            console.log("dataL1key set to " + dataL1key);
+            if (dataL2key != '')
+              el.closest('.' + dataClosest).find('.' + dataExpAttName + '[data-l1key=' + dataL1key + '][data-l2key=' + dataL2key + ']').each(function () {
+                $(this).val(fieldValue);
+              });
+            else {
+              el.closest('.' + dataClosest).find('.' + dataExpAttName + '[data-l1key=' + dataL1key + ']').each(function () {
+                $(this).val(fieldValue);
+              });
+            }
+          }  
         }
       }
     });
@@ -231,7 +267,21 @@ var pluginsToolsDepedency =  function() {};
       });
     });
   });  
-  
+
+pluginsToolsDepedency.showLog = function() {
+  if ($('.eqLogicAction[data-action=showLog]').is(':visible'))
+    $('#md_modal').dialog({title: "{{Log d'exécution}}"}).load('index.php?v=d&p=dashboard&modal=pluginsToolsDepedency.showLog&eqType=' + eqType + '&id=' + $('.eqLogicAttr[data-l1key=id]').value()).dialog('open')
+}
+
+pluginsToolsDepedency.jsonEditEqLogic = function() {
+  if ($('.eqLogicAction[data-action=editJsonEqLogic]').is(':visible'))
+    $('#md_modal').dialog({title: "{{Edition texte}}"}).load('index.php?v=d&p=dashboard&modal=pluginsToolsDepedency.jsonEdit.EqLogic&eqType=' + eqType + '&id=' + $('.eqLogicAttr[data-l1key=id]').value()).dialog('open')
+}
+
+pluginsToolsDepedency.saveEqLogic = function() {
+  if ($('.eqLogicAction[data-action=save]').is(':visible'))
+    $(".eqLogicAction[data-action=save]").click()
+}
 
 pluginsToolsDepedency.callFunct = function(_fctName, _defaultArguments, _arrayCallArguments, _checkArrayValueExist = null) {
   var returnValue = '';
@@ -239,20 +289,20 @@ pluginsToolsDepedency.callFunct = function(_fctName, _defaultArguments, _arrayCa
   if (typeof fn !== 'function')
     return;
   
-  //console.log("_arrayCallArguments " + _fctName);
+  console.log("_arrayCallArguments " + _fctName);
   if (isset(_arrayCallArguments) || isset(_checkArrayValueExist)) {
-    //console.log("_arrayCallArguments t2");
+    console.log("_arrayCallArguments t2");
     if (isset(_arrayCallArguments)) {
-      //console.log("_arrayCallArguments t3");
+      console.log("_arrayCallArguments t3");
       for (var i in _arrayCallArguments) {
-        //console.log("_arrayCallArguments t4");
+        console.log("_arrayCallArguments t4");
         if (!isset(_checkArrayValueExist)
             || (isset(_arrayCallArguments[i][_checkArrayValueExist]) && _arrayCallArguments[i][_checkArrayValueExist] != '')
            ) {
-          //console.log("_arrayCallArguments t5");
+          console.log("_arrayCallArguments t5");
           returnValue = fn.apply(window, _defaultArguments.concat([_arrayCallArguments[i]]));
         }
-        //console.log("_arrayCallArguments t6");
+        console.log("_arrayCallArguments t6");
       }
     }
   }
@@ -264,12 +314,12 @@ pluginsToolsDepedency.callFunct = function(_fctName, _defaultArguments, _arrayCa
 
 pluginsToolsDepedency.setDivBlock = function(_type, _el, _expressionAttr, _elem, div) {
   if (typeof _el === 'object' && _el !== null) {
-    //console.log("setDivBlock: first " + _type + "," + _expressionAttr);
+    console.log("setDivBlock: first " + _type + "," + _expressionAttr);
     _el.find('.div_' + _type).append(div);
     _el.find('.' + _type).last().setValues(_elem, '.' + _expressionAttr);    
   } 
   else {
-    //console.log("setDivBlock: second " + _type + "," + _expressionAttr);
+    console.log("setDivBlock: second " + _type + "," + _expressionAttr);
     $('#div_' + _type).append(div);
     $('#div_' + _type + ' .' + _type).last().setValues(_elem, '.' + _expressionAttr);
   } 
