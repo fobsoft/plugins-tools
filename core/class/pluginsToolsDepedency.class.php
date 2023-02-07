@@ -189,31 +189,37 @@ class pluginsToolsDepedency {
       $defaultValue = null;
       $newCmd =       false;
       $cmd =          cmd::byEqLogicIdAndLogicalId($eqLogicId, $logicalId);// $_eqLogic -> getCmd(null, $logicalId);
-      //if (!is_object($cmd)) {
-      //  pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','Comande not found, search commande by name:'.$configInfos['Name']);
-      //  $cmd = cmd::byEqLogicIdCmdName($eqLogicId, $configInfos['Name']);
-      //}
       
       if (!is_object($cmd)) {
         pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Comande not found...');
-        foreach ($configInfos['ListLogicalReplace'] as $idReplace) {
-          pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','Search commande replace name '.$idReplace);
-          $cmd = cmd::byEqLogicIdAndLogicalId($eqLogicId, $idReplace);
-          if (is_object($cmd)) {
-            pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Comande found...');
-            break;
-          }
-          else
+        if (isset($configInfos['ListLogicalReplace'])) {
+          foreach ($configInfos['ListLogicalReplace'] as $idReplace) {
+            pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','Search commande replace name '.$idReplace);
+            $cmd = cmd::byEqLogicIdAndLogicalId($eqLogicId, $idReplace);
+            
+            if (is_object($cmd)) {
+              pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Comande found...');
+              pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
+              break;
+            }
+
             pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Comande not found...');
-          pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
+            pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
+          }
         }
       }
       else
         pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Comande found...');
       
-      pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
+      pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG'); //Search commande
 
       if (isset($configInfos)) {
+        unset($configInfos['ListLogicalReplace']['value']);
+        if (isset($configInfos['Configuration']['value'])) {
+          $defaultValue = $configInfos['Configuration']['value'];
+          unset($configInfos['Configuration']['value']);
+        }        
+        
         if (!is_object($cmd)) {
           pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','Create '.$logicalId.' cmd on eqLogicId '.$eqLogicId);
           $newCmd = true;
@@ -225,20 +231,12 @@ class pluginsToolsDepedency {
         $cmd -> setEqLogic_id($eqLogicId);
         $cmd -> setLogicalId($logicalId);
         
-        if (isset($configInfos['Configuration']['value'])) {
-          $defaultValue = $configInfos['Configuration']['value'];
-          unset($configInfos['Configuration']['value']);
-        }
-        
         foreach ($configInfos as $key => $value) {
-          if ($key == 'ListLogicalReplace')
-            continue;
-
           if (isset($value)) {
             $key = ucfirst($key);
 
             if (!method_exists($cmd, 'set'.$key)) {
-              pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','method set'.$key.' n\'existe pas', 'debug');
+              pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','method set'.$key.' n\'existe pas', 'debug');
               continue;
             }
                
@@ -265,7 +263,6 @@ class pluginsToolsDepedency {
               if (in_array($key, $keyNotUpdated) && !$newCmd)
                 continue;
 
-         
               if (strpos($value, '#') === false) {
                 pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','set '.$key.' with value:'.$value);
                 $cmd -> {'set'.$key}($value);
@@ -283,17 +280,17 @@ class pluginsToolsDepedency {
         $cmd -> setOrder($orderCreationCmd++);
         $cmd -> save();
 
-        pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
-
         if ($newCmd && isset($defaultValue) && $configInfos['Type'] == 'info')
           $_eqLogic -> checkAndUpdateCmd($logicalId, $defaultValue);        //$cmd -> event($defaultValue);
         
-        pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
+        pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG'); // Create vs Modify
         
         $listCmdToCreated[$logicalId]['id'] = $cmd -> getId();
       }
       elseif (is_object($cmd))
         $cmd -> remove();
+        
+      pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG'); // Commande
     }
     
     if (!isset($_listCmdToCreated))
@@ -301,7 +298,7 @@ class pluginsToolsDepedency {
     
     $_eqLogic -> setProtectedValue('orderCreationCmd', $orderCreationCmd);
     
-    pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
+    pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG'); //Configuration
   }
   
   public function mergeLog(&$_eqLogic, &$_service) {
@@ -545,9 +542,9 @@ class pluginsToolsDepedency {
             && ($timestamp >= ~PHP_INT_MAX));
   }
 
-  public function createUniqueCron(&$_eqLogic, $_function, $_cronOption, $_schedule, $_setOnce = 1) {
+  public function createUniqueCron(&$_eqLogic, $_function, $_cronUniqueOption, $_schedule, $_setOnce = 1, $_cronOtherOption = array()) {
     $className =            $_eqLogic -> getProtectedValue('className');
-    $crons =                cron::searchClassAndFunction($className, $_function, $_cronOption);
+    $crons =                cron::searchClassAndFunction($className, $_function, $_cronUniqueOption);
     $scheduleIsTimestamp =  pluginsToolsDepedency::isValidTimeStamp($_schedule);
 
     if (!is_array($crons) || count($crons) == 0) {
@@ -556,7 +553,7 @@ class pluginsToolsDepedency {
       $cron = new cron();
       $cron->setClass($className);
       $cron->setFunction($_function);
-      $cron->setOption($_cronOption);
+      $cron->setOption(array_merge($_cronUniqueOption, $_cronOtherOption));
       $cron->setLastRun(date('Y-m-d H:i:s'));
       $cron->setOnce($_setOnce);
       $cron->setSchedule($scheduleIsTimestamp? cron::convertDateToCron($_schedule):$_schedule);
