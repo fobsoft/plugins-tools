@@ -175,12 +175,12 @@ class pluginsToolsDepedency {
   */
   
   public static function setCmdList(&$_eqLogic, $_listCmdToCreated = null) {
-    pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG', 'Configuration de la liste des commandes');
-    
     $eqLogicId =        $_eqLogic -> getId();
-    $keyNotUpdated =    array('IsVisible', 'IsHistorized', 'Generic_type');
+    $keyNotUpdated =    array('IsVisible', 'IsHistorized', 'Generic_type','Name');
     $listCmdToCreated = isset($_listCmdToCreated)? $_listCmdToCreated:$_eqLogic -> getProtectedValue('listCmdToCreated', array());
     $orderCreationCmd = $_eqLogic -> getProtectedValue('orderCreationCmd');
+
+    pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG', 'Configuration de la liste des commandes:: '.json_encode($listCmdToCreated));
     
     foreach ($listCmdToCreated as $logicalId => $configInfos) {      
       pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG', 'Commande '.$logicalId.' => '.json_encode($configInfos));

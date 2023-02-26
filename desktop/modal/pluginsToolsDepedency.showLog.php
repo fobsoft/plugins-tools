@@ -50,7 +50,7 @@ sendVarToJs('eqType',   init('eqType'));
   </span>
 </div>
 <br/><br/>
-<pre id='preLog' class='pluggin-LogContents'></pre>
+<pre id='preLog' class='pluggin-LogContents' style="height: calc(100% - 50px);"></pre>
 
 <?php 
 include_file('core', 'pluginToolsDepedency', 'js'); 
