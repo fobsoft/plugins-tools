@@ -21,20 +21,18 @@ abstract class pluginsToolsDepedencyConst {
 
 class pluginsToolsDepedency {
   public function purgeLog(&$_eqLogic) {
-    /*
-    $maxLineLog = config::byKey('maxLineLog', $_eqLogic -> getProtectedValue('className'), 5000);
-    $path =       dirname(__FILE__) . '/../../../../log/pluginLog/plugin' . $_eqLogic -> getId() . '.log';
+    //$maxLineLog = config::byKey('maxLineLog', $_eqLogic -> getProtectedValue('className'), 5000);
+    //$path =       dirname(__FILE__) . '/../../../../log/pluginLog/plugin' . $_eqLogic -> getId() . '.log';
 
-    pluginsToolsDepedency::addLog($_eqLogic, 'DEBUG', 'purgeLog off '.$path.' for max '.$maxLineLog.'line');
-    if (file_exists($path)) {
-      try {
-        com_shell::execute(system::getCmdSudo() . 'chmod 664 ' . $path . ' > /dev/null 2>&1;echo "$(tail -n ' . $maxLineLog . ' ' . $path . ')" > ' . $path);
-      } 
-      catch (\Exception $e) {
-      }
-    }
-    pluginsToolsDepedency::persistLog($_eqLogic);
-    */
+    //pluginsToolsDepedency::addLog($_eqLogic, 'DEBUG', 'purgeLog off '.$path.' for max '.$maxLineLog.'line');
+    //if (file_exists($path)) {
+    //  try {
+    //    com_shell::execute(system::getCmdSudo() . 'chmod 664 ' . $path . ' > /dev/null 2>&1;echo "$(tail -n ' . $maxLineLog . ' ' . $path . ')" > ' . $path);
+    //  } 
+    //  catch (\Exception $e) {
+    //  }
+    //}
+    //pluginsToolsDepedency::persistLog($_eqLogic);
   }  
 
   public static function mkdirPath(&$_eqLogic, $_dirName, $_fileName) {
@@ -61,6 +59,52 @@ class pluginsToolsDepedency {
     }
 
     return $objCallSrc;
+  }
+  
+  public static function callPluginMethod($_option) {
+		try {
+      $validAction =  true;
+      $lockListener = isset($_option['lockListener']);
+      
+      if ($lockListener) {
+        unset($_option['lockListener']);
+        if (($validAction = (!isset($_option['state']) || $_option['state'] == 1))) {
+          $listener = listener::byId($_option['listener_id']);
+          $listener -> setOption('state', 0);
+          $listener -> save();
+        }
+      }        
+        
+      if ($validAction) {
+        if (isset($_option['class'])) {
+          $class =    $_option['class'];
+          $function = $_option['function'];
+          
+          unset($_option['class']);
+          unset($_option['function']);
+          if (class_exists($class) && method_exists($class, $function))
+            $class::$function($_option);
+          else
+            log::add('listener', 'debug', __('[Erreur] Classe ou fonction non trouvée ', __FILE__) . json_encode($_option));
+        } 
+        else {
+          $function = $_option['function'];
+          unset($_option['function']);
+          if (function_exists($function))
+            $function($option);
+          else
+            log::add('listener', 'error', __('[Erreur] Function non trouvée ', __FILE__) . json_encode($_option));
+        }
+      }
+        
+      if ($lockListener) {
+        $listener -> setOption('state', 1);
+        $listener -> save();
+      }
+		} 
+    catch (Exception $e) {
+			log::add(init('plugin_id', 'plugin'), 'error', $e->getMessage());
+		}    
   }
   
   public static function callMethod(&$_eqLogic, $_method, $_parameter = array(), $_default = null) {
@@ -159,20 +203,45 @@ class pluginsToolsDepedency {
       pluginsToolsDepedency::setLog($_eqLogic, $_typeLog, $_log, $_level);
   }  
   
-  /*
-   'tpiCode' =>  array ('Name' =>           __('Code', __FILE__), 
-                        'IsVisible' =>      1, 
-                        'IsHistorized' =>   1, 
-                        'Type' =>           'info', 
-                        'SubType' =>        'string', 
-                        'Unite' =>          null,
-                        'Value' =>          null,
-                        'Alert' =>          array(),
-                        'Generic_type' =>   'ALARM_STATUS_CODE', 
-                        'Configuration' =>  array('minValue' => '', 'maxValue' => '', 'value' => $_tpiCode, 'repeatEventManagement' => 'always'), 
-                        'Template' =>       array('dashboard' => 'core::default', 'mobile' => 'core::default'),
-                        'Display' =>        array('message_placeholder' => 'code', 'title_disable' => 1, 'showStatsOnmobile' => 0, 'showStatsOndashboard' => 0, 'invertBinary' => 0, 'icon' => ''))  
-  */
+  public static function convertCmdConfigValue($_eqLogic, $_listCmdToCreated, $value) {
+    if (is_array($value)) {
+      foreach ($value as $prevArrKey => $prevArrValue) {
+        $arrKey = pluginsToolsDepedency::convertCmdConfigValue($_eqLogic, $_listCmdToCreated, $prevArrKey);
+        $arrValue = pluginsToolsDepedency::convertCmdConfigValue($_eqLogic, $_listCmdToCreated, $prevArrValue);
+        unset($value[$prevArrKey]);
+        $value[$arrKey] = $arrValue;
+      }
+    }
+    else {
+      if (preg_match_all("/#(.*?)#/", $value, $matches, PREG_SET_ORDER) && count($matches) > 0) {
+        pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG', 'Convert cmd config value:'.json_encode($value));
+        foreach ($matches as $match) {
+          if (isset($_listCmdToCreated[$match[1]]))
+            $value = '#'.$_listCmdToCreated[$match[1]]['id'].'#';
+          else
+            pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG', 'Commande non trouvé');
+          
+          pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG', ' -> '.$value);
+        }
+        pluginsToolsDepedency::unIncLog($_eqLogic, $_typeLog, '', $_level);
+      }
+    }
+    
+    return $value;
+  }
+  
+  // 'tpiCode' =>  array ('Name' =>           __('Code', __FILE__), 
+  //                      'IsVisible' =>      1, 
+  //                      'IsHistorized' =>   1, 
+  //                      'Type' =>           'info', 
+  //                      'SubType' =>        'string', 
+  //                      'Unite' =>          null,
+  //                      'Value' =>          null,
+  //                      'Alert' =>          array(),
+  //                      'Generic_type' =>   'ALARM_STATUS_CODE', 
+  //                      'Configuration' =>  array('minValue' => '', 'maxValue' => '', 'value' => $_tpiCode, 'repeatEventManagement' => 'always'), 
+  //                      'Template' =>       array('dashboard' => 'core::default', 'mobile' => 'core::default'),
+  //                      'Display' =>        array('message_placeholder' => 'code', 'title_disable' => 1, 'showStatsOnmobile' => 0, 'showStatsOndashboard' => 0, 'invertBinary' => 0, 'icon' => ''))  
   
   public static function setCmdList(&$_eqLogic, $_listCmdToCreated = null) {
     $eqLogicId =        $_eqLogic -> getId();
@@ -236,26 +305,45 @@ class pluginsToolsDepedency {
             $key = ucfirst($key);
 
             if (!method_exists($cmd, 'set'.$key)) {
-              pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','method set'.$key.' n\'existe pas', 'debug');
+              pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Method set'.$key.' n\'existe pas', 'debug');
               continue;
             }
                
             if (is_array($value)) {
-              pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','set '.$key, 'debug');
+              pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG','Set '.$key, 'debug');
               foreach ($value as $arrKey => $arrValue) {
-                if (isset($arrValue)) {
+                $arrValue = pluginsToolsDepedency::convertCmdConfigValue($_eqLogic, $listCmdToCreated, $arrValue);
+                pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Set '.$arrKey.' with value:'.json_encode($arrValue));
+                $cmd -> {'set'.$key}($arrKey, $arrValue);
+                
+                /*if (isset($arrValue)) {
+                  if (preg_match_all("/#\[(.*?)\]#/", $arrValue, $matches, PREG_SET_ORDER) && count($matches) > 0) {
+                    pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG', 'Valeur dynamique trouvé');
+                    foreach ($matches as $match) {
+                      pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG', 'Recherche l\'id de la commande '.$match[1]);
+                      if (isset($listCmdToCreated[$match[1]]))
+                        $arrValue = str_replace($match[0], $listCmdToCreated[$match[1]]['id'], $arrValue);
+                      else
+                        pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG', 'Commande non trouvé');
+                      pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
+                    }
+                  }
+                  pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Set '.$arrKey.' with value:'.json_encode($arrValue));
+                  $cmd -> {'set'.$key}($arrKey, $arrValue);
+                  
                   if (is_array($arrValue) || strpos($arrValue, '#') === false) {
-                    pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','set'.$arrKey.' with value:'.json_encode($arrValue));
+                    pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Set'.$arrKey.' with value:'.json_encode($arrValue));
                     $cmd -> {'set'.$key}($arrKey, $arrValue);
                   }
                   else {
                     if (isset($keyNotUpdated[$key]) && in_array($arrKey, $keyNotUpdated[$key]) && !$newCmd)
                       continue;
                     
-                    pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','set'.$$arrKey.' with value:'.$listCmdToCreated[str_replace('#', '', $arrValue)]['id']);
+                    pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Set'.$$arrKey.' with value:'.$listCmdToCreated[str_replace('#', '', $arrValue)]['id']);
                     $cmd -> {'set'.$key}($arrKey, $listCmdToCreated[str_replace('#', '', $arrValue)]['id']);
                   }
-                }
+                  
+                }*/
               }
               pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
             }
@@ -263,24 +351,46 @@ class pluginsToolsDepedency {
               if (in_array($key, $keyNotUpdated) && !$newCmd)
                 continue;
 
+              $value = pluginsToolsDepedency::convertCmdConfigValue($_eqLogic, $listCmdToCreated, $value);
+              pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Set '.$key.' with value:'.json_encode($value));
+              $cmd -> {'set'.$key}($value);
+              /*
+              if (preg_match_all("/#\[(.*?)\]#/", $value, $matches, PREG_SET_ORDER) && count($matches) > 0) {
+                pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG', 'Valeur dynamique trouvé');
+                foreach ($matches as $match) {
+                  pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG', 'Recherche l\'id de la commande '.$match[1]);
+                  if (isset($listCmdToCreated[$match[1]]))
+                    $value = str_replace($match[0], $listCmdToCreated[$match[1]]['id'], $value);
+                  else
+                    pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG', 'Commande non trouvé');
+                  pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG');
+                }
+              }
+              
+              pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','1. Set '.$key.' with value:'.$value);
+              $cmd -> {'set'.$key}($value);
+              */
+              /*
               if (strpos($value, '#') === false) {
-                pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','set '.$key.' with value:'.$value);
+                pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','1. Set '.$key.' with value:'.$value);
                 $cmd -> {'set'.$key}($value);
               }
               else {
-                pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','set '.$key.' with value:'.$listCmdToCreated[str_replace('#', '', $value)]['id']);
+                pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','2. Set '.$key.' with value:'.$listCmdToCreated[str_replace('#', '', $value)]['id']);
                 $cmd -> {'set'.$key}($listCmdToCreated[str_replace('#', '', $value)]['id']);
               }
+              */
             }
           }
         }
-        pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','set EqType with value:'.$_eqLogic -> getEqType_name());
+        pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Set EqType with value:'.$_eqLogic -> getEqType_name());
         $cmd -> setEqType($_eqLogic -> getEqType_name());
-        pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','set Order with value:'.$orderCreationCmd);
-        $cmd -> setOrder($orderCreationCmd++);
+        //pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','set Order with value:'.$orderCreationCmd);
+        //$cmd -> setOrder($orderCreationCmd++);
         $cmd -> save();
 
-        if ($newCmd && isset($defaultValue) && $configInfos['Type'] == 'info')
+        //if ($newCmd && isset($defaultValue) && $configInfos['Type'] == 'info')
+        if (isset($defaultValue) && $configInfos['Type'] == 'info')
           $_eqLogic -> checkAndUpdateCmd($logicalId, $defaultValue);        //$cmd -> event($defaultValue);
         
         pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG'); // Create vs Modify
@@ -328,7 +438,6 @@ class pluginsToolsDepedency {
     }
     else
       $content = 'Node '.$_nodeGenKey.' not found';
-
     return $content;
   }
   
@@ -373,154 +482,167 @@ class pluginsToolsDepedency {
     $_eqLogic -> setProtectedValue('log', array());
   }
 
-	public function fullDataObject(&$_eqLogic, $_restrictSearch = array(), $_searchOnChildObject = true, $_onlyVisible = false) {
-    pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','fullDataObject :: '.json_encode($_restrictSearch, JSON_UNESCAPED_UNICODE).' searchOnChildObject:'.$_searchOnChildObject);
-    
-    $_restrictSearch['level'] =               !isset($_restrictSearch['level'])?              7:$_restrictSearch['level'];    //1- Object, 2- Eq, 4- Cmd
-    $_restrictSearch['object'] =              !isset($_restrictSearch['object'])?             array():$_restrictSearch['object'];
-    $_restrictSearch['genericTypeObject'] =   !isset($_restrictSearch['genericTypeObject'])?  array():$_restrictSearch['genericTypeObject'];
-    $_restrictSearch['eqLogic'] =             !isset($_restrictSearch['eqLogic'])?            array():$_restrictSearch['eqLogic'];
-    $_restrictSearch['genericTypeEqLogic'] =  !isset($_restrictSearch['genericTypeEqLogic'])? array():$_restrictSearch['genericTypeEqLogic'];
-    $_restrictSearch['plugin'] =              !isset($_restrictSearch['plugin'])?             array():$_restrictSearch['plugin'];
-    $_restrictSearch['cmd'] =                 !isset($_restrictSearch['cmd'])?                array():$_restrictSearch['cmd'];
-    $_restrictSearch['genericTypeCmd'] =      !isset($_restrictSearch['genericTypeCmd'])?     array():$_restrictSearch['genericTypeCmd'];
-    
+	public function fullDataObject(&$_eqLogic, $_options) {
+    pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','fullDataObject :: ');
+
 		$return = array();
-    foreach (jeeObject::all(true, true) as $object) {
-      //pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG2','object :: '.$object->getId().' '.$object->getName().':::'.count($_restrictSearch['object']));
+    
+    if (isset($_options['restrictSearch'])) {
+      $_restrictSearch =        isset($_options['restrictSearch'])?       $_options['restrictSearch']:array();
+      $_searchOnChildObject =   isset($_options['searchOnChildObject'])?  $_options['searchOnChildObject']:1;
+      $_searchOnParentObject =  isset($_options['searchOnParentObject'])? $_options['searchOnParentObject']:0;
+      $_onlyVisible =           isset($_options['onlyVisible'])?          $_options['onlyVisible']:0;
+      
+      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','  restrictSearch :: '.json_encode($_restrictSearch, JSON_UNESCAPED_UNICODE));
+      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','  searchOnChildObject :: '.json_encode($_searchOnChildObject, JSON_UNESCAPED_UNICODE));
+      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','  searchOnParentObject :: '.json_encode($_searchOnParentObject, JSON_UNESCAPED_UNICODE));
+      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','  onlyVisible :: '.$onlyVisible);
+    
+      $_restrictSearch['level'] =               !isset($_restrictSearch['level'])?              7:$_restrictSearch['level'];    //1- Object, 2- Eq, 4- Cmd
+      $_restrictSearch['object'] =              !isset($_restrictSearch['object'])?             array():$_restrictSearch['object'];
+      $_restrictSearch['genericTypeObject'] =   !isset($_restrictSearch['genericTypeObject'])?  array():$_restrictSearch['genericTypeObject'];
+      $_restrictSearch['eqLogic'] =             !isset($_restrictSearch['eqLogic'])?            array():$_restrictSearch['eqLogic'];
+      $_restrictSearch['genericTypeEqLogic'] =  !isset($_restrictSearch['genericTypeEqLogic'])? array():$_restrictSearch['genericTypeEqLogic'];
+      $_restrictSearch['plugin'] =              !isset($_restrictSearch['plugin'])?             array():$_restrictSearch['plugin'];
+      $_restrictSearch['cmd'] =                 !isset($_restrictSearch['cmd'])?                array():$_restrictSearch['cmd'];
+      $_restrictSearch['genericTypeCmd'] =      !isset($_restrictSearch['genericTypeCmd'])?     array():$_restrictSearch['genericTypeCmd'];
+      
+      foreach (jeeObject::all(true, true) as $object) {
+        //pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG2','object :: '.$object->getId().' '.$object->getName().':::'.count($_restrictSearch['object']));
 
-      // On valide que l'on a pas de restriction au niveau de l'object ou que celui-ci figure dans la restriction
-      if (count($_restrictSearch['object']) == 0 || in_array($object->getId(),$_restrictSearch['object']) || in_array(-1,$_restrictSearch['object'])) {
+        // On valide que l'on a pas de restriction au niveau de l'object ou que celui-ci figure dans la restriction
+        if (count($_restrictSearch['object']) == 0 || in_array($object->getId(),$_restrictSearch['object']) || in_array(-1,$_restrictSearch['object'])) {
 
-        // Si on doit rechercher dans les enfant et qu'il y a restriction de l'object
-        if ($_searchOnChildObject && isset($_restrictSearch['object'])) {
-          //pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG2','On recherche ses enfants');
-          
-          $objectChildList = $object->getChild($_onlyVisible);
+          // Si on doit rechercher dans les enfant et qu'il y a restriction de l'object
+          if ($_searchOnChildObject && isset($_restrictSearch['object'])) {
+            //pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG2','On recherche ses enfants');
+            
+            $objectChildList = $object->getChild($_onlyVisible);
 
-          if (is_array($objectChildList) && count($objectChildList) > 0) {
-            foreach ($objectChildList as $objectChild) {
-              //pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','Add child '.$objectChild->getName().' ('.$objectChild->getId().') element on _restrictSearch');
-              array_push($_restrictSearch['object'], $objectChild->getId());
-            }
-          }
-          //pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG2','Search child');
-        }
-
-        if (count($_restrictSearch['genericTypeObject']) == 0 || in_array($object->getGeneric_type(), $_restrictSearch['genericTypeObject'])) {
-          $current_object = utils::o2a($object);
-          
-          $object_return['id'] =            $current_object['id'];
-          $object_return['name'] =          $current_object['name'];
-          $object_return['isVisible'] =     $current_object['isVisible'];
-          $object_return['isVisible'] =     $current_object['isVisible'];
-          $object_return['humanName'] =     '['.$current_object['name'].']';
-          $object_return['listEqLogic'] =   array();
-          
-          // Recherche des commandes des equipements trouvee
-          if ($_restrictSearch['level'] > 1) {
-            foreach ($object -> getEqLogic(false, false) as $eqLogic) {
-              $eqGenericType =  $eqLogic->getGenericType();
-              $eqPluggin =      $eqLogic->getEqType_name();
-
-              // Ajouter la restriction genericTypeEqLogic
-              if (count($_restrictSearch['eqLogic']) != 0 && !in_array($eqLogic->getId(), $_restrictSearch['eqLogic']))
-                continue;//pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','L\équipement '.$eqLogic->getHumanName().' n\'est pas dans la liste de ceux recherchées');
-              elseif (count($_restrictSearch['genericTypeEqLogic']) != 0 && !in_array($eqGenericType, $_restrictSearch['genericTypeEqLogic']))
-                continue;//pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','Le type générique de l\'équipement '.$eqLogic->getHumanName().' ('.$eqGenericType.') n\'est pas dans la liste de ceux recherchés ('.json_encode($_restrictSearch['genericTypeEqLogic']).')');
-              elseif (count($_restrictSearch['plugin']) != 0 && !in_array($eqPluggin, $_restrictSearch['plugin']))
-                continue;//pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','Le plugin de l\'équipement '.$eqLogic->getHumanName().' ('.$eqPluggin.') n\'est pas dans la liste de ceux recherchés ('.json_encode($_restrictSearch['plugin']).')');
-              else {
-                //pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG2','Check eq '.$eqLogic->getHumanName().'('.$eqLogic->getId().')');
-                
-                $current_eqLogic = utils::o2a($eqLogic);
-                
-                $eqLogic_return['objectId'] =         $object_return['id'];
-                $eqLogic_return['objectHumanName'] =  $object_return['humanName'];
-                $eqLogic_return['id'] =               $current_eqLogic['id'];
-                $eqLogic_return['name'] =             $current_eqLogic['name'];
-                $eqLogic_return['genericType'] =      $current_eqLogic['generic_type'];
-                $eqLogic_return['eqTypeName'] =       $current_eqLogic['eqType_name'];
-                $eqLogic_return['isVisible'] =        $current_eqLogic['isVisible'];
-                $eqLogic_return['isEnable'] =         $current_eqLogic['isEnable'];
-                $eqLogic_return['humanName'] =        $eqLogic->getHumanName();
-                $eqLogic_return['status'] =           $current_eqLogic['status'];
-                $eqLogic_return['listCmd'] =          array();
-
-                if ($_restrictSearch['level'] & 4) {
-                  foreach ($eqLogic->getCmd() as $cmd) {
-                    $cmdGenericType = $cmd->getGeneric_type();
-                    
-                    if (count($_restrictSearch['cmd']) != 0 && !in_array($cmd->getId(), $_restrictSearch['cmd']))
-                      continue;//pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','CMD '.$cmd -> getHumanName().': La commande n\'est pas dans la liste de celles recherchées');
-                    elseif (count($_restrictSearch['genericTypeCmd']) != 0 && !in_array($cmdGenericType, $_restrictSearch['genericTypeCmd']))
-                      continue;//pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','CMD '.$cmd -> getHumanName().': Le type générique de la commande ('.$cmdGenericType.') n\'est pas dans la liste de ceux recherchés ('.json_encode($_restrictSearch['genericTypeCmd']).')');
-                    else {
-                      pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG2','CMD '.$cmd -> getHumanName().': Ajout de la commande à la liste');
-                      
-                      $current_cmd = utils::o2a($cmd);
-                      
-                      $cmd_return['objectId']           = $object_return['id'];
-                      $cmd_return['objectHumanName']    = $object_return['humanName'];
-                      $cmd_return['eqLogicId']          = $eqLogic_return['id'];
-                      $cmd_return['eqLogicHumanName']   = $eqLogic_return['humanName'];
-                      $cmd_return['id']                 = $current_cmd['id'];
-                      $cmd_return['generic_type']       = $current_cmd['generic_type'];
-                      $cmd_return['eqType']             = $current_cmd['eqType'];
-                      $cmd_return['name']               = $current_cmd['name'];
-                      $cmd_return['type']               = $current_cmd['type'];
-                      $cmd_return['subType']            = $current_cmd['subType'];
-                      $cmd_return['eqLogic_id']         = $current_cmd['eqLogic_id'];
-                      $cmd_return['isHistorized']       = $current_cmd['isHistorized'];
-                      $cmd_return['unite']              = $current_cmd['unite'];
-                      $cmd_return['value']              = $current_cmd['value'];
-                      $cmd_return['isVisible']          = $current_cmd['isVisible'];
-                      $cmd_return['humanName']          = $cmd -> getHumanName();
-                      
-                      if ($cmd_return['type'] == 'info')
-                        $cmd_return['state'] = $cmd->execCmd();
-                      
-                      if ($_restrictSearch['level'] > 4)
-                        $eqLogic_return['listCmd'][] = $cmd_return;
-                      else
-                        $return[] = $cmd_return;
-
-                      pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG2');
-                    }
-                  }
-                }
-
-                if (!($_restrictSearch['level'] & 4) || count($eqLogic_return['listCmd']) > 0) {
-                  if ($_restrictSearch['level'] & 2) {
-                    if ($_restrictSearch['level'] & 1)
-                      $object_return['listEqLogic'][] = $eqLogic_return;
-                    else
-                      $return[] = $eqLogic_return;
-                  }
-                  elseif ($_restrictSearch['level'] & 1 && count($eqLogic_return['listCmd']) > 0)
-                    $object_return['listCmd'] = isset($object_return['listCmd'])? array_merge($object_return['listCmd'], $eqLogic_return['listCmd']):$eqLogic_return['listCmd'];
-                }
-                //pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG2');
+            if (is_array($objectChildList) && count($objectChildList) > 0) {
+              foreach ($objectChildList as $objectChild) {
+                //pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','Add child '.$objectChild->getName().' ('.$objectChild->getId().') element on _restrictSearch');
+                array_push($_restrictSearch['object'], $objectChild->getId());
               }
             }
+            //pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG2','Search child');
           }
 
-          if ($_restrictSearch['level'] & 1 
-              && ($_restrictSearch['level'] == 1 || isset($object_return['listCmd']) || count($object_return['listEqLogic']) > 0))
-            $return[] = $object_return;
-        }      
-			}
-      //pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG2');
-		}
-    
+          if (count($_restrictSearch['genericTypeObject']) == 0 || in_array($object->getGeneric_type(), $_restrictSearch['genericTypeObject'])) {
+            $current_object = utils::o2a($object);
+            
+            $object_return['id'] =            $current_object['id'];
+            $object_return['name'] =          $current_object['name'];
+            $object_return['isVisible'] =     $current_object['isVisible'];
+            $object_return['isVisible'] =     $current_object['isVisible'];
+            $object_return['humanName'] =     '['.$current_object['name'].']';
+            $object_return['listEqLogic'] =   array();
+            
+            // Recherche des commandes des equipements trouvee
+            if ($_restrictSearch['level'] > 1) {
+              foreach ($object -> getEqLogic(false, false) as $eqLogic) {
+                $eqGenericType =  $eqLogic->getGenericType();
+                $eqPluggin =      $eqLogic->getEqType_name();
+
+                // Ajouter la restriction genericTypeEqLogic
+                if (count($_restrictSearch['eqLogic']) != 0 && !in_array($eqLogic->getId(), $_restrictSearch['eqLogic']))
+                  continue;//pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','L\équipement '.$eqLogic->getHumanName().' n\'est pas dans la liste de ceux recherchées');
+                elseif (count($_restrictSearch['genericTypeEqLogic']) != 0 && !in_array($eqGenericType, $_restrictSearch['genericTypeEqLogic']))
+                  continue;//pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','Le type générique de l\'équipement '.$eqLogic->getHumanName().' ('.$eqGenericType.') n\'est pas dans la liste de ceux recherchés ('.json_encode($_restrictSearch['genericTypeEqLogic']).')');
+                elseif (count($_restrictSearch['plugin']) != 0 && !in_array($eqPluggin, $_restrictSearch['plugin']))
+                  continue;//pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','Le plugin de l\'équipement '.$eqLogic->getHumanName().' ('.$eqPluggin.') n\'est pas dans la liste de ceux recherchés ('.json_encode($_restrictSearch['plugin']).')');
+                else {
+                  //pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG2','Check eq '.$eqLogic->getHumanName().'('.$eqLogic->getId().')');
+                  
+                  $current_eqLogic = utils::o2a($eqLogic);
+                  
+                  $eqLogic_return['objectId'] =         $object_return['id'];
+                  $eqLogic_return['objectHumanName'] =  $object_return['humanName'];
+                  $eqLogic_return['id'] =               $current_eqLogic['id'];
+                  $eqLogic_return['name'] =             $current_eqLogic['name'];
+                  $eqLogic_return['genericType'] =      $current_eqLogic['generic_type'];
+                  $eqLogic_return['eqTypeName'] =       $current_eqLogic['eqType_name'];
+                  $eqLogic_return['isVisible'] =        $current_eqLogic['isVisible'];
+                  $eqLogic_return['isEnable'] =         $current_eqLogic['isEnable'];
+                  $eqLogic_return['humanName'] =        $eqLogic->getHumanName();
+                  $eqLogic_return['status'] =           $current_eqLogic['status'];
+                  $eqLogic_return['listCmd'] =          array();
+
+                  if ($_restrictSearch['level'] & 4) {
+                    foreach ($eqLogic->getCmd() as $cmd) {
+                      $cmdGenericType = $cmd->getGeneric_type();
+                      
+                      if (count($_restrictSearch['cmd']) != 0 && !in_array($cmd->getId(), $_restrictSearch['cmd']))
+                        continue;//pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','CMD '.$cmd -> getHumanName().': La commande n\'est pas dans la liste de celles recherchées');
+                      elseif (count($_restrictSearch['genericTypeCmd']) != 0 && !in_array($cmdGenericType, $_restrictSearch['genericTypeCmd']))
+                        continue;//pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','CMD '.$cmd -> getHumanName().': Le type générique de la commande ('.$cmdGenericType.') n\'est pas dans la liste de ceux recherchés ('.json_encode($_restrictSearch['genericTypeCmd']).')');
+                      else {
+                        pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG2','CMD '.$cmd -> getHumanName().': Ajout de la commande à la liste');
+                        
+                        $current_cmd = utils::o2a($cmd);
+                        
+                        $cmd_return['objectId']           = $object_return['id'];
+                        $cmd_return['objectHumanName']    = $object_return['humanName'];
+                        $cmd_return['eqLogicId']          = $eqLogic_return['id'];
+                        $cmd_return['eqLogicHumanName']   = $eqLogic_return['humanName'];
+                        $cmd_return['id']                 = $current_cmd['id'];
+                        $cmd_return['generic_type']       = $current_cmd['generic_type'];
+                        $cmd_return['eqType']             = $current_cmd['eqType'];
+                        $cmd_return['name']               = $current_cmd['name'];
+                        $cmd_return['type']               = $current_cmd['type'];
+                        $cmd_return['subType']            = $current_cmd['subType'];
+                        $cmd_return['eqLogic_id']         = $current_cmd['eqLogic_id'];
+                        $cmd_return['isHistorized']       = $current_cmd['isHistorized'];
+                        $cmd_return['unite']              = $current_cmd['unite'];
+                        $cmd_return['value']              = $current_cmd['value'];
+                        $cmd_return['isVisible']          = $current_cmd['isVisible'];
+                        $cmd_return['humanName']          = $cmd -> getHumanName();
+                        
+                        if ($cmd_return['type'] == 'info')
+                          $cmd_return['state'] = $cmd->execCmd();
+                        
+                        if ($_restrictSearch['level'] > 4)
+                          $eqLogic_return['listCmd'][] = $cmd_return;
+                        else
+                          $return[] = $cmd_return;
+
+                        pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG2');
+                      }
+                    }
+                  }
+
+                  if (!($_restrictSearch['level'] & 4) || count($eqLogic_return['listCmd']) > 0) {
+                    if ($_restrictSearch['level'] & 2) {
+                      if ($_restrictSearch['level'] & 1)
+                        $object_return['listEqLogic'][] = $eqLogic_return;
+                      else
+                        $return[] = $eqLogic_return;
+                    }
+                    elseif ($_restrictSearch['level'] & 1 && count($eqLogic_return['listCmd']) > 0)
+                      $object_return['listCmd'] = isset($object_return['listCmd'])? array_merge($object_return['listCmd'], $eqLogic_return['listCmd']):$eqLogic_return['listCmd'];
+                  }
+                  //pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG2');
+                }
+              }
+            }
+
+            if ($_restrictSearch['level'] & 1 
+                && ($_restrictSearch['level'] == 1 || isset($object_return['listCmd']) || count($object_return['listEqLogic']) > 0))
+              $return[] = $object_return;
+          }      
+        }
+        //pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG2');
+      }
+    }
+      
     pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','==>'.json_encode($return, JSON_UNESCAPED_UNICODE));
-    
+
 		return $return;
 	}  
 
   public function getElementConfig(&$_eqLogic, $_configName, $_configElementName = null, $_configElementValue = null) {
     $result = array();
-    
+
     foreach ($_eqLogic -> getConfiguration($_configName) as $keyElement => $detailElement) {
       if (isset($_configElementValue)) {
         if ($detailElement[$_configElementName] == $_configElementValue)
@@ -533,6 +655,7 @@ class pluginsToolsDepedency {
           $result[] = $detailElement;
       }
     }
+
     return $result;
   }
   
@@ -548,7 +671,7 @@ class pluginsToolsDepedency {
     $scheduleIsTimestamp =  pluginsToolsDepedency::isValidTimeStamp($_schedule);
 
     if (!is_array($crons) || count($crons) == 0) {
-      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Creation of cron witdh '.($scheduleIsTimestamp? 'timestamp':'schedule')); 
+      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG', 'Creation of cron with '.($scheduleIsTimestamp? 'timestamp':'schedule')); 
 
       $cron = new cron();
       $cron->setClass($className);
@@ -560,7 +683,7 @@ class pluginsToolsDepedency {
       $cron->save();
     }
     else {
-      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Re-schedule of cron witdh '.($scheduleIsTimestamp? 'timestamp':'schedule')); 
+      pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG','Re-schedule of cron with '.($scheduleIsTimestamp? 'timestamp':'schedule')); 
       
       $delete = false;
       foreach ($crons as $cron) {
@@ -577,16 +700,18 @@ class pluginsToolsDepedency {
   
   public static function getJeedomGenericType() {
     $genericTypeConfig =  jeedom::getConfiguration('cmd::generic_type');
+
     foreach (plugin::listPlugin(false, true, false, true) as $key => $plugin) {
       if (method_exists($plugin, 'pluginGenericTypes'))
         $genericTypeConfig = array_merge($genericTypeConfig, $plugin::pluginGenericTypes());
     }
+
     return $genericTypeConfig;
   }
   
   public static function getGenericTypeConfiguration($_type = null) {
     $genericTypeList =    array();
-    
+
     foreach (pluginsToolsDepedency::getJeedomGenericType() as $generic_type_key => $generic_type_detail) {
       if (isset($generic_type_detail['ignore']) && $generic_type_detail['ignore'] == true)
         continue;
@@ -613,7 +738,7 @@ class pluginsToolsDepedency {
 
     foreach ($genericTypeList as $family => $family_detail)
       ksort($genericTypeList[$family]['generiqueType'], SORT_STRING);
-  
+
     return $genericTypeList;
   }
 
@@ -621,6 +746,7 @@ class pluginsToolsDepedency {
     $_genericTypeList = pluginsToolsDepedency::getGenericTypeConfiguration($_type);
 
     $return = array();
+
     if ($_includeNone)
       $return[] = array('text' => __('Aucun', __FILE__), 'value' => '');
     
@@ -630,7 +756,7 @@ class pluginsToolsDepedency {
           $return[] = array('text' => $generiqueTypedetail['name'] . ($_type == 'all'? ' | ' . $generiqueTypedetail['type']:''), 'value' => $generiqueTypedetail['key']);
       }
     }
-    
+
     return $return;
   }
   
@@ -638,6 +764,7 @@ class pluginsToolsDepedency {
     $_genericTypeList = pluginsToolsDepedency::getGenericTypeConfiguration($_type);
 
     $return = '';
+
     if ($_includeNone)
       $return .= '<option value="">' . __('Aucun', __FILE__) . '</option>';
     
@@ -649,8 +776,8 @@ class pluginsToolsDepedency {
       }
       $return .= '</optgroup>';
     }
-    
+
     return $return;
-  }  
+  } 
 }
 ?>

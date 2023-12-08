@@ -19,8 +19,9 @@
 var pluginsToolsDepedency =  function() {};
 
 // KEY DOWN
-  document.onkeydown = function(event) {
-    if (jeedomUtils.getOpenedModal()) return
+  /*document.onkeydown = function(event) {
+    if (jeedomUtils.getOpenedModal()) 
+      return true;
 
     //if ((event.ctrlKey || event.metaKey)) {
     if (event.ctrlKey) {
@@ -35,9 +36,49 @@ var pluginsToolsDepedency =  function() {};
                   break;
       }
 
-      return
+      return true;
     }
-  }
+  }*/
+  $(document).ready(function() {
+    var ctrlDown = false,
+        ctrlKey = 17,
+        cmdKey = 91,
+        vKey = 86,
+        cKey = 67;
+        sKey = 83;
+        lKey = 76;
+        eKey = 69;
+
+    $(document).keydown(function(e) {
+        if (e.keyCode == ctrlKey || e.keyCode == cmdKey) ctrlDown = true;
+    }).keyup(function(e) {
+        if (e.keyCode == ctrlKey || e.keyCode == cmdKey) ctrlDown = false;
+    });
+
+    $(".no-copy-paste").keydown(function(e) {
+      if (ctrlDown && (e.keyCode == vKey || e.keyCode == cKey)) return false;
+    });
+
+    // Document Ctrl + C/V 
+    $(document).keydown(function(e) {
+      //if (ctrlDown && (e.keyCode == sKey)) console.log("Document catch Ctrl+C");
+      //if (ctrlDown && (e.keyCode == vKey)) console.log("Document catch Ctrl+V");
+      if (ctrlDown) {
+        switch (event.which) {
+          case sKey:  pluginsToolsDepedency.saveEqLogic();        // s
+                      return false;
+                      break;
+          case lKey:  pluginsToolsDepedency.showLog();            // l
+                      return false;
+                      break;
+          case eKey:  pluginsToolsDepedency.jsonEditEqLogic();    // e
+                      return false;
+                      break;
+        }
+      }
+    });
+  });  
+  
   
 // EQUIPEMENT GENERIC FUNCTION
   // Affichage des log
@@ -75,7 +116,7 @@ var pluginsToolsDepedency =  function() {};
         if (result !== null) {
           if (result) {
             if (isset(dataLiClosest))
-              $(dataLiClosest).remove();
+              el.closest(dataLiClosest).remove();
             el.closest('.' + dataClosest).remove();
           }
         }
@@ -204,6 +245,28 @@ bootbox.confirm("<form id='infos' action=''>\
     });
   });  
 
+  // Ajouter un equipement
+  $('body').off('click','.listEqlogic').on('click','.listEqlogic', function () {
+    var dataClosest =   $(this).attr('data-closest');
+    var dataAttr =      $(this).attr('data-attr');
+    var dataL1key =     $(this).attr('data-filedL1key');
+    var dataL2key =     isset($(this).attr('data-filedL2key'))? $(this).attr('data-filedL2key'):'';
+    
+    if (dataL2key != '')
+      var el = $(this).closest('.' + dataClosest).find('.' + dataAttr + '[data-l1key=' + dataL1key + '][data-l2key=' + dataL2key + ']');
+    else
+      var el = $(this).closest('.' + dataClosest).find('.' + dataAttr + '[data-l1key=' + dataL1key + ']');
+    
+    jeedom.eqLogic.getSelectModal({}, function (result) {
+      if (el.attr('data-concat') == 1) {
+        el.atCaret('insert', result.human);
+      } 
+      else {
+        el.value(result.human);
+      }
+    });
+  });
+  
   // Ajouter une commande info
   $('body').off('click','.listCmdInfo').on('click','.listCmdInfo', function () {
     var dataClosest =   $(this).attr('data-closest');
@@ -306,8 +369,10 @@ pluginsToolsDepedency.callFunct = function(_fctName, _defaultArguments, _arrayCa
       }
     }
   }
-  else
+  else {
+    console.log("_arrayCallArguments apply defaultArguments");
     returnValue = fn.apply(window, _defaultArguments);
+  }
   
   return returnValue;
 }
