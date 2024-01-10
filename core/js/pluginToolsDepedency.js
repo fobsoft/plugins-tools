@@ -352,25 +352,25 @@ pluginsToolsDepedency.callFunct = function(_fctName, _defaultArguments, _arrayCa
   if (typeof fn !== 'function')
     return;
   
-  console.log("_arrayCallArguments " + _fctName);
+  //console.log("_arrayCallArguments " + _fctName);
   if (isset(_arrayCallArguments) || isset(_checkArrayValueExist)) {
-    console.log("_arrayCallArguments t2");
+    //console.log("_arrayCallArguments t2");
     if (isset(_arrayCallArguments)) {
-      console.log("_arrayCallArguments t3");
+      //console.log("_arrayCallArguments t3");
       for (var i in _arrayCallArguments) {
-        console.log("_arrayCallArguments t4");
+        //console.log("_arrayCallArguments t4");
         if (!isset(_checkArrayValueExist)
             || (isset(_arrayCallArguments[i][_checkArrayValueExist]) && _arrayCallArguments[i][_checkArrayValueExist] != '')
            ) {
-          console.log("_arrayCallArguments t5");
+          //console.log("_arrayCallArguments t5");
           returnValue = fn.apply(window, _defaultArguments.concat([_arrayCallArguments[i]]));
         }
-        console.log("_arrayCallArguments t6");
+        //console.log("_arrayCallArguments t6");
       }
     }
   }
   else {
-    console.log("_arrayCallArguments apply defaultArguments");
+    //console.log("_arrayCallArguments apply defaultArguments");
     returnValue = fn.apply(window, _defaultArguments);
   }
   
@@ -379,12 +379,12 @@ pluginsToolsDepedency.callFunct = function(_fctName, _defaultArguments, _arrayCa
 
 pluginsToolsDepedency.setDivBlock = function(_type, _el, _expressionAttr, _elem, div) {
   if (typeof _el === 'object' && _el !== null) {
-    console.log("setDivBlock: first " + _type + "," + _expressionAttr);
+    //console.log("setDivBlock: first " + _type + "," + _expressionAttr);
     _el.find('.div_' + _type).append(div);
     _el.find('.' + _type).last().setValues(_elem, '.' + _expressionAttr);    
   } 
   else {
-    console.log("setDivBlock: second " + _type + "," + _expressionAttr);
+    //console.log("setDivBlock: second " + _type + "," + _expressionAttr);
     $('#div_' + _type).append(div);
     $('#div_' + _type + ' .' + _type).last().setValues(_elem, '.' + _expressionAttr);
   } 
@@ -395,7 +395,7 @@ pluginsToolsDepedency.getSelectGenericType = function(_options, _callback) {
   var modalNameDialogBox = "#mod_insert" + _options.source;
   
   if ($("#mod_insert" + _options.source).length != 0) {
-      $(modalNameDialogBox).remove();
+    $(modalNameDialogBox).remove();
   }
   
   if ($(modalNameDialogBox).length == 0) {
