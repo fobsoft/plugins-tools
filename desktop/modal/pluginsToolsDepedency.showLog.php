@@ -30,8 +30,7 @@ sendVarToJs('eqType',   init('eqType'));
   .label-info,
   .label-success,
   .label-warning,
-  .label-danger,
-  .label-info {
+  .label-danger {
     width: 55px;
   }
 </style>
