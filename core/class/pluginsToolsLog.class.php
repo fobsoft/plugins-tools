@@ -24,101 +24,70 @@ abstract class pluginsToolsLogConst {
                               'INFO' =>         4,
                               'DEBUG' =>        8,
                               'DEBUG2' =>       16, // Calcul, End part after begin
-                              'DEBUG_SYS' =>    16 // Calcul, End part after begin
+                              'DEBUG_SYS' =>    16, // Calcul, End part after begin
+                              'HIDE' =>        999 
                              ];
                               
   const TypeLogPriority =  array('ND' => 0, 'DEBUG_ADV' => 1, 'DEBUG' => 2, 'INFO' => 3, 'WARNING' => 4, 'ERROR' => 5);
 }
 
 class pluginsToolsLog {
-  
-  public static function init(&$_eqLogic, $_options = []) {
+  public static function init(&$_eqLogic, &$_options = []) {
     // La logique de config de parametre doit se basser sur l'enfant, ceci couvre le flow d'appel sinchrone
     $objectCall = pluginsToolsDepedency::getObjCall($_eqLogic);
     
     if (is_object($objectCall)) {
       $cacheLogToken = $objectCall -> getProtectedValue('cacheLogToken');
       
-      if (!isset($cacheLogToken) && isset($_options['cacheLogToken'])) {
-        $cacheLogToken = $_options['cacheLogToken'];
-        
-        $objectCall -> setProtectedValue('cacheLogToken',      $cacheLogToken);
-        //$objectCall -> setProtectedValue('objectCallLogPath',  isset($_options['objectCallLogPath'])?  $_options['objectCallLogPath']:null);
-      }
-
       if (!isset($cacheLogToken)) {
-        $dirLog =       $objectCall -> getProtectedValue('dirLog', 'pluginLog');
-        $suffixLog =    $objectCall -> getProtectedValue('suffixLog', 'plugin');
-        $cacheLogToken = pluginsToolsLog::generateCacheToken($objectCall);
+        if (isset($_options['cacheLogToken'])) {
+          $objectCall -> setProtectedValue('cacheLogToken',  $_options['cacheLogToken']);
+          unset($_options['cacheLogToken']);
+        }
+        else {
+          $dirLog =       $objectCall -> getProtectedValue('dirLog', 'pluginLog');
+          $suffixLog =    $objectCall -> getProtectedValue('suffixLog', 'plugin');
 
-        $objectCall -> setProtectedValue('objectCallLogPath',  pluginsToolsDepedency::mkdirPath($objectCall, $dirLog, $suffixLog.$objectCall -> getId()));
-        $objectCall -> setProtectedValue('cacheLogToken',  $cacheLogToken);      
+          $objectCall -> setProtectedValue('objectCallLogPath', pluginsToolsDepedency::mkdirPath($objectCall, $dirLog, $suffixLog.$objectCall -> getId()));
+          $objectCall -> setProtectedValue('cacheLogToken',     pluginsToolsLog::generateCacheToken($objectCall, $objectCall));
+          $objectCall -> setProtectedValue('persistLog',        1);
+        }
+        $objectCall -> setProtectedValue('cacheLogPath',   pluginsToolsLog::mkdirPath('cacheLog', $objectCall -> getProtectedValue('cacheLogToken')));
+        //$objectCall -> setProtectedValue('persistLog',     (isset($_options['cacheLogToken'])? $_options['cacheLogToken']:1));
       }
 
-      if (isset($cacheLogToken)) {
-        //$cacheLogPath = $objectCall -> getProtectedValue('cacheLogPath', null);
-        
-        //if (!isset($cacheLogPath)) {
-          $cacheLogPath = pluginsToolsLog::mkdirPath('cacheLog', $cacheLogToken);
-          
-          $objectCall -> setProtectedValue('persistLog',     1);
-          $objectCall -> setProtectedValue('cacheLogPath',   $cacheLogPath);
-            
-          //pluginsToolsLog::setLog($objectCall, 'DEBUG_SYS', 'persistLog:'.        $objectCall -> getProtectedValue('persistLog'));
-          //pluginsToolsLog::setLog($objectCall, 'DEBUG_SYS', 'objectCallLogPath:'. $objectCall -> getProtectedValue('objectCallLogPath'));
-          //pluginsToolsLog::setLog($objectCall, 'DEBUG_SYS', 'cacheLogPath:'.      $objectCall -> getProtectedValue('cacheLogPath'));
-        //}
-      }
     }
   } 
   
-  public static function generateCacheToken($_objectCall, $_cacheLogToken = null) {
+  public static function generateCacheToken($_eqLogic, $_objectToken, $_cacheLogToken = null) {
+    pluginsToolsLog::setLog($_eqLogic, 'INFO', 'generateCacheToken');
     if (isset($_cacheLogToken))
       $cacheLogToken = $_cacheLogToken;
     else {
-      pluginsToolsLog::setLog($_objectCall, 'DEBUG_SYS', 'generate token for object '.get_class($_objectCall));
-      
       $cacheLogToken = '';
-      /*switch (get_class($_objectCall)) {
-        case 'cmd':     $cacheLogToken = $_objectCall -> getLogicalId().$_objectCall -> getId();
-        case 'eqLogic': $cacheLogToken .= $_objectCall -> getEqType_name().$_objectCall -> getId().'_';
-                        break;
-      }*/
-      $cacheLogToken .= $_objectCall -> getEqType_name().$_objectCall -> getId().'_';
-      $cacheLogToken .= pluginsToolsDepedency::generateRandomKey();
-    }
-
-    pluginsToolsLog::setLog($_objectCall, 'DEBUG_SYS', 'generate token for object '.get_class($_objectCall));
-    pluginsToolsLog::setLog($_objectCall, 'TOKEN', $cacheLogToken);
-    
-    return $cacheLogToken;
-  }   
-
-  public static function execCmdAction($_eqLogicCall, $_cmd, $_options = []) {
-    if (is_object($_cmd))
-      $cmd = $_cmd;
-    else
-      $cmd = $_eqLogicCall -> getCmd(null, $_cmdLogicalId);
-    
-    if (is_object($cmd)) {
-      if ($cmd -> getType() == 'action') {
-        $cacheLogToken = pluginsToolsLog::generateCacheToken($_eqLogicCall, config::genKey(10));
-        if (isset($cacheLogToken)) {
-          $_options['cacheLogToken'] =     $cacheLogToken;
-          $_options['objectCallLogPath'] = $_eqLogicCall -> getProtectedValue('cacheLogToken');
+      if (is_object($_objectToken)) {
+        pluginsToolsLog::setLog($_eqLogic, 'INFO', 'for object');
+        
+        if (method_exists($_objectToken, 'getObject_id')) {
+          pluginsToolsLog::setLog($_eqLogic, 'INFO', 'generate token for object');
+          $cacheLogToken .= $_objectToken -> getEqType_name().$_objectToken -> getId();
         }
-
-        pluginsToolsLog::setLog($_eqLogicCall, 'INFO', 'Exécution de la commande ' . $cmd -> getHumanName() . ' ' . __('options', __FILE__) . ':: ' . json_encode($_options, JSON_UNESCAPED_UNICODE), 'success');
-        $cmd -> execCmd($_options);
+        else {
+          pluginsToolsLog::setLog($_eqLogic, 'INFO', 'generate token for cmd');
+          $cacheLogToken .= $_objectToken -> getEqType().'CMD'.$_objectToken -> getId();
+        }
       }
+      else
+        $cacheLogToken .= $_objectToken;
+      
+      $cacheLogToken .= '_'.time().'_'.pluginsToolsDepedency::generateRandomKey();
+      
     }
-  }
-  
-  public static function execCmdInfo($_eqLogicCall, $_cmdLogicalId, $_defaultValue = null) {
-    if (is_object($cmd = $_eqLogicCall -> getCmd(null, $_cmdLogicalId)) && $cmd -> getType() == 'info')
-      return $cmd -> execCmd();
     
-    return $_defaultValue;
+    pluginsToolsLog::setLog($_eqLogic, 'INFO', 'Token Generated: '.$cacheLogToken);
+    pluginsToolsLog::setLog($_eqLogic, 'TOKEN', $cacheLogToken);
+
+    return $cacheLogToken;
   } 
 
   public static function mkdirPath($_dirName, $_fileName = null, $_purgeFile = false) {
@@ -174,6 +143,14 @@ class pluginsToolsLog {
     return pluginsToolsLog::write($_eqLogic, ['typeLog' => $_typeLog, 'log' => $_log, 'level' => $_level]);
   }  
   
+  public static function incLog(&$_eqLogic, $_typeLog = '', $_log = '', $_level = '') {
+    pluginsToolsLog::setSub($_eqLogic, ['typeLog' => $_typeLog, 'log' => $_log, 'level' => $_level]);
+  }
+
+  public static function unIncLog(&$_eqLogic, $_typeLog = '', $_log = '', $_level = '') {
+    pluginsToolsLog::unsetSub($_eqLogic, ['typeLog' => $_typeLog, 'log' => $_log, 'level' => $_level]);
+  }  
+  
   //['typeLog' => $_typeLog, 'log' => $_log, 'level' => $_level]
   public static function write(&$_eqLogic, $_logRecord) {
     if ($_logRecord['log'] != '') {
@@ -214,20 +191,14 @@ class pluginsToolsLog {
               $logMessage .= $_logRecord['log'];
           }
           
-          //$cacheLogRes = $objectCall -> getProtectedValue('cacheLogRes');
-          //if (isset($cacheLogRes))
-          //  fwrite($cacheLogRes, $logMessage);
-          //else {
-            $fileLogPath = null;
-            if (($cacheLogPath = $objectCall -> getProtectedValue('cacheLogPath', '')) != '')
-              $fileLogPath = $cacheLogPath;
-            //elseif (($objectCallLogPath = $objectCall -> getProtectedValue('objectCallLogPath', '')) != '')
-            //  $fileLogPath = $objectCallLogPath;
-            
-            if (isset($fileLogPath))
-              file_put_contents($fileLogPath.'.tmp', $logMessage."\n", FILE_APPEND | LOCK_EX);
-            
-          //}
+          $fileLogPath = null;
+          if (($cacheLogPath = $objectCall -> getProtectedValue('cacheLogPath', '')) != '')
+            $fileLogPath = $cacheLogPath;
+          //elseif (($objectCallLogPath = $objectCall -> getProtectedValue('objectCallLogPath', '')) != '')
+          //  $fileLogPath = $objectCallLogPath;
+          
+          if (isset($fileLogPath))
+            file_put_contents($fileLogPath.'.tmp', $logMessage."\n", FILE_APPEND | LOCK_EX);
         }
       }  
     }
@@ -238,7 +209,6 @@ class pluginsToolsLog {
   public static function persistLog(&$_eqLogic, $_timeOut = 10) {
     if ($_eqLogic -> getProtectedValue('persistLog', 0) == 1) {
       $objectCallLogPath =  $_eqLogic -> getProtectedValue('objectCallLogPath');
-      //$cacheLogRes =        $_eqLogic -> getProtectedValue('cacheLogRes');
       $cacheLogPath =       $_eqLogic -> getProtectedValue('cacheLogPath');
       $cacheLogToken =      $_eqLogic -> getProtectedValue('cacheLogToken');  
       
@@ -253,19 +223,19 @@ class pluginsToolsLog {
 
         foreach ($lineList as $lineKey => $lineMessage) {
           if (preg_match_all("/\[TOKEN\](.*)/", $lineMessage, $matches, PREG_PATTERN_ORDER) && count($matches[1]) > 0 ) {
-            pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Sub token '.$matches[1][0].' detected');
+            pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Sub token '.$matches[1][0].' detected');
 
-            $subCacheLogPath = pluginsToolsLog::mkdirPath('cacheLog', $matches[1][0]);
+            $subCacheLogPath = pluginsToolsLog::mkdirPath('cacheLog', $matches[1][0].'.tmp');
             $timeOut = 120;
             while (!file_exists($subCacheLogPath)
                    && $timeOut > 0) {
-              pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Sub token '.$subCacheLogPath.' not exist, wait 1 seconde');
+              pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Sub token '.$subCacheLogPath.' not exist, wait 1 seconde');
               $timeOut -= 1;
               sleep(1);
             }
         
             if (file_exists($subCacheLogPath)) {
-              pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Sub token '.$subCacheLogPath.' exist, incllude this on log');
+              pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Sub token '.$subCacheLogPath.' exist, incllude this on log');
 
               $logMessage .= "\n".file_get_contents($subCacheLogPath);
               unlink($subCacheLogPath);
@@ -281,35 +251,39 @@ class pluginsToolsLog {
           $eqLogicId =          $_eqLogic -> getId();
           $objectCallLogList =  [];
           
-          pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Scan directory '.$directory);
+          pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Scan directory '.$directory);
           $scanned_directory =  array_diff(scandir($directory), array('..', '.'));
           
           foreach ($scanned_directory as $fileKeyId => $fileName) {
-            //pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Compare '.$fileName.' with '.$eqLogicType.$eqLogicId.'_');
-
             if (strpos($fileName, $eqLogicType.$eqLogicId.'_') !== false) {
-              pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', '  Add file '.$fileName.' on list');
+              pluginsToolsLog::setLog($_eqLogic, 'NONE', '  Add file '.$fileName.' on list');
 
-              $objectCallLogList[filemtime($directory.'/'.$fileName)] = $directory.'/'.$fileName;
+              $objectCallLogList[] = $directory.'/'.$fileName;
             }
           }
-          ksort($objectCallLogList);  
-          pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', ['List log file' => $objectCallLogList]);
+          sort($objectCallLogList);  
+          pluginsToolsLog::setLog($_eqLogic, 'NONE', ['List log file' => $objectCallLogList]);
           
-          pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Wait previous log is persisted');
-          $_timeOut = 120;
-          while (array_values($objectCallLogList)[0] != $cacheLogPath.'.tmp'
-                 && $_timeOut > 0) {
-                   
-            pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Wait previous log '.array_values($objectCallLogList)[0].' is persisted');
-            foreach ($objectCallLogList as $fileKeyId => $fileName) {
-              if (!file_exists($fileName))
-                unset($objectCallLogList[$fileKeyId]);
+          pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Wait previous log is persisted');
+          $timeOut = 120;
+          do {
+            $nextFileLog =  array_values($objectCallLogList)[0];
+            $timeOut -= 1;
+            pluginsToolsDepedency::incLog($_eqLogic, 'NONE', 'Check if next log '.$nextFileLog.' is this log '.$cacheLogPath.'.tmp');
+            
+            if ($nextFileLog != $cacheLogPath.'.tmp') {
+              pluginsToolsLog::incLog($_eqLogic, 'NONE', 'Wait previous log '.$nextFileLog.' is persisted');
+              if (!file_exists($nextFileLog)) {
+                pluginsToolsLog::setLog($_eqLogic, 'NONE', 'File name '.$nextFileLog.' is deleted, delete record file');                
+                array_shift($objectCallLogList);
+              }
+              pluginsToolsLog::unIncLog($_eqLogic, 'NONE');
             }
             
-            $_timeOut -= 1;
-            sleep(1);
+            pluginsToolsDepedency::unIncLog($_eqLogic, 'NONE');
           }
+          while ($nextFileLog != $cacheLogPath.'.tmp'
+                 && $timeOut > 0);
           
           file_put_contents($objectCallLogPath, $logMessage, FILE_APPEND | LOCK_EX);
         }

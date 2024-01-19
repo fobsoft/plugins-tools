@@ -125,124 +125,23 @@ class pluginsToolsDepedency {
   }
   
   public static function incLog(&$_eqLogic, $_typeLog = '', $_log = '', $_level = '') {
-    if ($_eqLogic -> getProtectedValue('cacheLogPath', '') != '')
-      pluginsToolsLog::setSub($_eqLogic, ['typeLog' => $_typeLog, 'log' => $_log, 'level' => $_level]);
-    else {
-      $objCall = pluginsToolsDepedency::getObjCall($_eqLogic, 'increaseParentLog');
-
-      pluginsToolsDepedency::setLog($objCall, $_typeLog, $_log, $_level);
-      
-      if (method_exists($objCall, 'increaseParentLog'))
-        $objCall -> increaseParentLog();
-    }
+    pluginsToolsLog::setSub($_eqLogic, ['typeLog' => $_typeLog, 'log' => $_log, 'level' => $_level]);
   }
 
   public static function unIncLog(&$_eqLogic, $_typeLog = '', $_log = '', $_level = '') {
-    if ($_eqLogic -> getProtectedValue('cacheLogPath', '') != '')
-      pluginsToolsLog::unsetSub($_eqLogic, ['typeLog' => $_typeLog, 'log' => $_log, 'level' => $_level]);
-    else {
-      $objCall = pluginsToolsDepedency::getObjCall($_eqLogic, 'decreaseParentLog');
-
-      if (method_exists($objCall, 'decreaseParentLog'))
-        $objCall -> decreaseParentLog();
-      
-      if ($_eqLogic -> getProtectedValue('logLevel') == pluginsToolsDepedencyConst::LogLevel['DebugAdvance'])
-        pluginsToolsDepedency::setLog($objCall, $_typeLog, $_log, $_level);
-    }
+    pluginsToolsLog::unsetSub($_eqLogic, ['typeLog' => $_typeLog, 'log' => $_log, 'level' => $_level]);
   }
   
   public static function setLog(&$_eqLogic, $_typeLog = '', $_log = '', $_level = 'debug') {
-    if ($_eqLogic -> getProtectedValue('cacheLogPath', '') != '')
-      return pluginsToolsLog::write($_eqLogic, ['typeLog' => $_typeLog, 'log' => $_log, 'level' => $_level]);
-    else {
-      if ($_log != '') {
-        $objCall = pluginsToolsDepedency::getObjCall($_eqLogic, 'addLog');
-
-        if (method_exists($objCall, 'addLog'))
-          pluginsToolsDepedency::addLog($objCall, $_typeLog, $_log, $_level);
-      }
-      return true;
-    }
+    return pluginsToolsLog::write($_eqLogic, ['typeLog' => $_typeLog, 'log' => $_log, 'level' => $_level]);
   }  
   
   public static function addLog(&$_eqLogic, $_typeLog, $_log, $_level = 'debug') {
-    if ($_eqLogic -> getProtectedValue('cacheLogPath', '') != '')
-      return pluginsToolsLog::write($_eqLogic, ['typeLog' => $_typeLog, 'log' => $_log, 'level' => $_level]);
-    else {
-      if ($_typeLog == 'ERROR')
-        $_level = 'danger';
-      elseif ($_typeLog == 'DEBUG2') {
-        if ($_eqLogic -> getProtectedValue('logLevel', $_eqLogic -> getConfiguration('logLevel', 'default')) == 'advanced') {
-          $_typeLog = 'DEBUG';
-          $_level =   '';
-        }
-        else
-          return;
-      }
-
-      //$logResult = array();
-      //foreach ((!is_array($_log)? (array)$_log:$_log) as $log) {
-      //  $logResult = array_merge($logResult, explode("\n", $log));
-      //}
-     
-      if (is_array($_log) || is_object($_log)) {
-        $_log = (array)$_log;
-        foreach ($_log as $logKey => $logValue) {
-          if (is_array($logValue) || is_object($logValue)) {
-            pluginsToolsDepedency::incLog($_eqLogic, $_typeLog, $logKey.' => {', $_level);
-            pluginsToolsDepedency::addLog($_eqLogic, $_typeLog, $logValue, $_level);
-            pluginsToolsDepedency::unIncLog($_eqLogic, $_typeLog, '}', $_level);
-          }
-          else
-            pluginsToolsDepedency::addLog($_eqLogic, $_typeLog, $logKey.' => '.$logValue, $_level);
-        }
-      }
-      else {
-        $logResult = $_log;
-        $_eqLogic -> addLog(array('dateLog' => date('Y-m-d H:i:s'), 'typeLog' => $_typeLog, 'level' => $_level, 'padLog' => $_eqLogic -> getProtectedValue('parentLog'), 'log' => $logResult));
-      }
-      
-      if ($_eqLogic -> getProtectedValue('logmode', $_eqLogic -> getConfiguration('logmode', 'default')) == 'realtime')
-        pluginsToolsDepedency::persistLog($_eqLogic);
-    }
+    return pluginsToolsLog::write($_eqLogic, ['typeLog' => $_typeLog, 'log' => $_log, 'level' => $_level]);
   }
   
   public static function setArrayLog(&$_eqLogic, $_typeLog, $_log, $_display = null, $_title = null, $_level = 'debug') {
-    $_display = !isset($_display)? '{value}':$_display;
-    
-    if (count($_log)) {
-      if ($_typeLog == 'ERROR')
-        $_level = 'danger';
-      elseif ($_typeLog == 'DEBUG2') {
-        if ($_eqLogic -> getProtectedValue('logLevel', $_eqLogic -> getConfiguration('logLevel', 'default')) == 'advanced') {
-          $_typeLog = 'DEBUG';
-          $_level =   '';
-       }
-        else
-          return;
-      }
-      
-      if ($_title != '')
-        pluginsToolsDepedency::incLog($_eqLogic, $_typeLog, $_title, $_level);
-      
-      foreach ($_log as $key => $row) {
-        $logResult = $_display;
-        $logResult = str_replace(['{key}','{value}'], [$key,(is_array($row)? json_encode($row, JSON_UNESCAPED_UNICODE):$row)], $logResult);
-        if (is_array($row)) {
-          foreach ($row as $keyValue => $value)
-            $logResult = str_replace('{'.$keyValue.'}', $value, $logResult);
-        }
-        pluginsToolsDepedency::setLog($_eqLogic, $_typeLog, $logResult, $_level);
-      }
-      
-      if ($_title != '')
-        pluginsToolsDepedency::unIncLog($_eqLogic, $_typeLog, '', $_level);
-
-      //if ($_eqLogic -> getProtectedValue('logmode', $_eqLogic -> getConfiguration('logmode', 'default')) == 'realtime')
-      //  pluginsToolsDepedency::persistLog($_eqLogic);
-    }
-    elseif (isset($_log))
-      pluginsToolsDepedency::setLog($_eqLogic, $_typeLog, $_log, $_level);
+    return pluginsToolsLog::write($_eqLogic, ['typeLog' => $_typeLog, 'log' => [$_title => $_log], 'level' => $_level]);
   }  
   
   public static function convertCmdConfigValue($_eqLogic, $_listCmdToCreated, $value) {
@@ -581,6 +480,78 @@ class pluginsToolsDepedency {
 		
 		return $randHexStr;
 	}
+/*  
+  public static function execCmdAction($_eqLogicCall, $_cmd, $_options = []) {
+    $cmd = is_object($_cmd)? $_cmd:$_eqLogicCall -> getCmd(null, $_cmd);
+    
+    if (is_object($cmd)) {
+      
+      if ($cmd -> getType() == 'action') {    
+        $cacheLogToken = pluginsToolsLog::generateCacheToken($cmd);
+        if (isset($cacheLogToken))
+          $_options['cacheLogToken'] =     $cacheLogToken;
+
+        pluginsToolsLog::setLog($_eqLogicCall, 'INFO', 'Exécution de la commande ' . $cmd -> getHumanName() . ' ' . __('options', __FILE__) . ':: ' . json_encode($_options, JSON_UNESCAPED_UNICODE), 'success');
+        $cmd -> execCmd($_options);
+      }
+      else
+        pluginsToolsLog::setLog($_eqLogicCall, 'INFO', 'Recherche de la valeur de la commande ' . $cmd -> getHumanName() . ' ' . __('options', __FILE__) . ':: ' . json_encode($_options, JSON_UNESCAPED_UNICODE), 'success');
+        return $cmd -> execCmd($_options);
+      
+    }
+  }*/
+  /*
+  public static function execCmdInfo($_eqLogicCall, $_cmd, $_defaultValue = null) {
+    $cmd = is_object($_cmd)? $_cmd:$_eqLogicCall -> getCmd(null, $_cmd);
+    
+    if (is_object($cmd) && $cmd -> getType() == 'info')
+      $cmd = $_cmd;
+    else
+      $cmd = $_eqLogicCall -> getCmd(null, $_cmd);
+    
+    if (is_object($cmd)) {
+      
+    return $cmd -> execCmd();
+    //return $_defaultValue;
+  }*/  
+  
+  public static function execCmdEvent($_eqLogicCall, $_cmd, $_value) {
+    $cmd = is_object($_cmd)? $_cmd:$_eqLogicCall -> getCmd(null, $_cmd);
+    if (is_object($cmd) && $cmd -> getType() == 'info') {
+      pluginsToolsLog::setLog($_eqLogicCall, 'INFO', 'Configuration de la commande ' . $cmd -> getHumanName() . '  à ' . $_value, 'success');
+      $cmd -> event($_value);
+    }
+  }
+  
+  public static function execCmdAction($_eqLogic, $_cmd, $_options) {
+    if (isset($_cmd) && is_numeric(str_replace('#', '',$_cmd))) {
+      $cmdAction =    cmd::byId(str_replace('#', '', $_cmd));
+      $cmdHumanName = $cmdAction -> getHumanName();
+    }
+    else {
+      $cmdHumanName = $action['cmd'];
+    }
+      pluginsToolsLog::incLog($_eqLogic, 'INFO', 'Exécution de '.$cmdHumanName.' via les classes par défault');
+
+      // Si c'est une commande appartenant a l'equipement
+      if (is_object($cmdAction)) {
+        $_options['cacheLogToken'] = pluginsToolsLog::generateCacheToken($_eqLogic, $cmdAction);
+        
+        if ($cmdAction -> getSubtype() == 'slider' && isset($_options['slider']))
+          $_options['slider'] = evaluate($_options['slider']);
+
+        pluginsToolsLog::setlog($_eqLogic, 'INFO', __('Exécution de la commande ', __FILE__) . $cmdHumanName . __(" avec comme option(s) : ", __FILE__) . json_encode($_options), 'success');
+                
+        $cmdAction -> execCmd($_options);      
+      }
+      else {
+        $_options['cacheLogToken'] = pluginsToolsLog::generateCacheToken($_eqLogic, $_eqLogic);
+        
+        pluginsToolsLog::setlog($_eqLogic, 'INFO', __('Exécution de la commande ', __FILE__) . $cmdHumanName . __(" avec comme option(s) : ", __FILE__) . json_encode($_options), 'success');
+        scenarioExpression::createAndExec('action', $_cmd, $_options);
+      }
+      pluginsToolsLog::unIncLog($_eqLogic, 'INFO');
+  }
   
 	public function fullDataObject(&$_eqLogic, $_options) {
     pluginsToolsDepedency::setLog($_eqLogic, 'DEBUG2','fullDataObject :: ');
@@ -784,7 +755,11 @@ class pluginsToolsDepedency {
     }
       
     if (($directExecution = (isset($startEvent) && $currentTimestamp > $startEvent))) {
-      pluginsToolsDepedency::setLog($_eqLogic, 'INFO', 'Timestamp dans le passé, on exécute la commande directement ('.$_function.')', 'success'); 
+      pluginsToolsDepedency::setLog($_eqLogic, 'INFO', __(" Timestamp dans le passé, on exécute la commande ", __FILE__) . $_function . __(" avec comme option(s) : ", __FILE__) . json_encode($_options), 'success');
+      
+      if (method_exists($_eqLogic, 'getProtectedValue'))
+        $_options['cacheLogToken'] = $_eqLogic -> getProtectedValue('cacheLogToken');
+      
       $className::{$_function}($_options);
       
       foreach ($crons as $cron)
