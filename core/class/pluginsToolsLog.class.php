@@ -51,7 +51,7 @@ class pluginsToolsLog {
           $dirLog =       $objectCall -> getProtectedValue('dirLog', 'pluginLog');
           $suffixLog =    $objectCall -> getProtectedValue('suffixLog', 'plugin');
 
-          $objectCall -> setProtectedValue('objectCallLogPath', pluginsToolsLog::mkdirPath($objectCall, $dirLog, $suffixLog.$objectCall -> getId()));
+          $objectCall -> setProtectedValue('objectCallLogPath', pluginsToolsLog::mkdirPath($dirLog, $suffixLog.$objectCall -> getId()));
           $objectCall -> setProtectedValue('cacheLogToken',     pluginsToolsLog::generateCacheToken($objectCall, $objectCall));
           $objectCall -> setProtectedValue('persistLog',        1);
         }
