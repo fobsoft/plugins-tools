@@ -34,7 +34,10 @@ abstract class pluginsToolsLogConst {
 class pluginsToolsLog {
   public static function init(&$_eqLogic, &$_options = []) {
     // La logique de config de parametre doit se basser sur l'enfant, ceci couvre le flow d'appel sinchrone
-    $objectCall = pluginsToolsDepedency::getObjCall($_eqLogic);
+    if (isset($_options['objectCall']))
+      $objectCall = $_options['objectCall'];
+    else
+      $objectCall = pluginsToolsDepedency::getObjCall($_eqLogic);
     
     if (is_object($objectCall)) {
       $cacheLogToken = $objectCall -> getProtectedValue('cacheLogToken');
@@ -48,7 +51,7 @@ class pluginsToolsLog {
           $dirLog =       $objectCall -> getProtectedValue('dirLog', 'pluginLog');
           $suffixLog =    $objectCall -> getProtectedValue('suffixLog', 'plugin');
 
-          $objectCall -> setProtectedValue('objectCallLogPath', pluginsToolsDepedency::mkdirPath($objectCall, $dirLog, $suffixLog.$objectCall -> getId()));
+          $objectCall -> setProtectedValue('objectCallLogPath', pluginsToolsLog::mkdirPath($objectCall, $dirLog, $suffixLog.$objectCall -> getId()));
           $objectCall -> setProtectedValue('cacheLogToken',     pluginsToolsLog::generateCacheToken($objectCall, $objectCall));
           $objectCall -> setProtectedValue('persistLog',        1);
         }
@@ -56,6 +59,9 @@ class pluginsToolsLog {
         //$objectCall -> setProtectedValue('persistLog',     (isset($_options['cacheLogToken'])? $_options['cacheLogToken']:1));
       }
 
+      //pluginsToolsLog::setLog($objectCall, 'DEBUG_SYS', 'persistLog:'.        $objectCall -> getProtectedValue('persistLog'));
+      //pluginsToolsLog::setLog($objectCall, 'DEBUG_SYS', 'objectCallLogPath:'. $objectCall -> getProtectedValue('objectCallLogPath'));
+      //pluginsToolsLog::setLog($objectCall, 'DEBUG_SYS', 'cacheLogPath:'.      $objectCall -> getProtectedValue('cacheLogPath'));
     }
   } 
   
@@ -112,7 +118,7 @@ class pluginsToolsLog {
       if (!isset($_subRecord['level']))
         $_subRecord['level'] = 'debug';
         
-      if ($objectCall -> getProtectedValue('logLevel',0) < pluginsToolsLogConst::LogLevel[$_subRecord['typeLog']])
+      if ($objectCall -> getProtectedValue('logLevel',pluginsToolsLogConst::LogLevel['DEBUG_SYS']) < pluginsToolsLogConst::LogLevel[$_subRecord['typeLog']])
         return;      
       
       pluginsToolsLog::write($objectCall, $_subRecord);
@@ -128,13 +134,13 @@ class pluginsToolsLog {
       if (!isset($_subRecord['level']))
         $_subRecord['level'] = 'debug';
         
-      if ($objectCall -> getProtectedValue('logLevel',0) < pluginsToolsLogConst::LogLevel[$_subRecord['typeLog']])
+      if ($objectCall -> getProtectedValue('logLevel',pluginsToolsLogConst::LogLevel['DEBUG_SYS']) < pluginsToolsLogConst::LogLevel[$_subRecord['typeLog']])
         return;      
       
       if (method_exists($objectCall, 'decreaseParentLog'))
         $objectCall -> decreaseParentLog();
 
-      if ($objectCall -> getProtectedValue('logLevel',0) == pluginsToolsDepedencyConst::LogLevel['DebugAdvance'])
+      if ($objectCall -> getProtectedValue('logLevel',pluginsToolsLogConst::LogLevel['DEBUG_SYS']) == pluginsToolsLogConst::LogLevel['DebugAdvance'])
         pluginsToolsLog::write($objectCall, $_subRecord);
     }
   }  
@@ -158,7 +164,7 @@ class pluginsToolsLog {
         if (!isset($_logRecord['level']))
           $_logRecord['level'] = 'debug';
         
-        if ($objectCall -> getProtectedValue('logLevel',0) < pluginsToolsLogConst::LogLevel[$_logRecord['typeLog']])
+        if ($objectCall -> getProtectedValue('logLevel',pluginsToolsLogConst::LogLevel['DEBUG_SYS']) < pluginsToolsLogConst::LogLevel[$_logRecord['typeLog']])
           return;
         
         if ($_logRecord['typeLog'] == 'DEBUG_SYS')
@@ -171,12 +177,12 @@ class pluginsToolsLog {
           $_logRecord['log'] = (array)$_logRecord['log'];
           foreach ($_logRecord['log'] as $logKey => $logValue) {
             if (is_array($logValue) || is_object($logValue)) {
-              pluginsToolsDepedency::incLog($objectCall, $_logRecord['typeLog'], $logKey.' => {', $_logRecord['level']);
-              pluginsToolsLog::write($objectCall, ['typeLog' => $_logRecord['typeLog'], 'log' => $logValue, 'level' => $_logRecord['level']]);
-              pluginsToolsDepedency::unIncLog($objectCall, $_logRecord['typeLog'], '}', $_logRecord['level']);
+              pluginsToolsLog::incLog($objectCall, $_logRecord['typeLog'], $logKey.' => {', $_logRecord['level']);
+              pluginsToolsLog::setLog($objectCall, $_logRecord['typeLog'], $logValue, $_logRecord['level']);
+              pluginsToolsLog::unIncLog($objectCall, $_logRecord['typeLog'], '}', $_logRecord['level']);
             }
             else
-              pluginsToolsDepedency::addLog($objectCall, $_logRecord['typeLog'], $logKey.' => '.$logValue, $_logRecord['level']);
+              pluginsToolsLog::setLog($objectCall, $_logRecord['typeLog'], $logKey.' => '.$logValue, $_logRecord['level']);
           }
         }
         else {
@@ -191,14 +197,8 @@ class pluginsToolsLog {
               $logMessage .= $_logRecord['log'];
           }
           
-          $fileLogPath = null;
           if (($cacheLogPath = $objectCall -> getProtectedValue('cacheLogPath', '')) != '')
-            $fileLogPath = $cacheLogPath;
-          //elseif (($objectCallLogPath = $objectCall -> getProtectedValue('objectCallLogPath', '')) != '')
-          //  $fileLogPath = $objectCallLogPath;
-          
-          if (isset($fileLogPath))
-            file_put_contents($fileLogPath.'.tmp', $logMessage."\n", FILE_APPEND | LOCK_EX);
+            file_put_contents($cacheLogPath.'.tmp', $logMessage."\n", FILE_APPEND | LOCK_EX);
         }
       }  
     }
@@ -216,10 +216,11 @@ class pluginsToolsLog {
         $lineList =     file($cacheLogPath.'.tmp');
         $logMessage =   "";
 
-        pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG_SYS', 'Exec persistLog');
-        pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'cacheLogToken:'.$cacheLogToken);
-        pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'objectCallLogPath:'.$objectCallLogPath);
-        pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'cacheLogPath:'.$cacheLogPath);
+        pluginsToolsLog::incLog($_eqLogic, 'NONE', 'Exec persistLog');
+        pluginsToolsLog::setLog($_eqLogic, 'NONE', 'cacheLogToken:'.$cacheLogToken);
+        pluginsToolsLog::setLog($_eqLogic, 'NONE', 'objectCallLogPath:'.$objectCallLogPath);
+        pluginsToolsLog::setLog($_eqLogic, 'NONE', 'cacheLogPath:'.$cacheLogPath);
+        pluginsToolsLog::setLog($_eqLogic, 'NONE', 'lineCount:'.count($lineList));
 
         foreach ($lineList as $lineKey => $lineMessage) {
           if (preg_match_all("/\[TOKEN\](.*)/", $lineMessage, $matches, PREG_PATTERN_ORDER) && count($matches[1]) > 0 ) {
@@ -269,7 +270,7 @@ class pluginsToolsLog {
           do {
             $nextFileLog =  array_values($objectCallLogList)[0];
             $timeOut -= 1;
-            pluginsToolsDepedency::incLog($_eqLogic, 'NONE', 'Check if next log '.$nextFileLog.' is this log '.$cacheLogPath.'.tmp');
+            pluginsToolsLog::incLog($_eqLogic, 'NONE', 'Check if next log '.$nextFileLog.' is this log '.$cacheLogPath.'.tmp');
             
             if ($nextFileLog != $cacheLogPath.'.tmp') {
               pluginsToolsLog::incLog($_eqLogic, 'NONE', 'Wait previous log '.$nextFileLog.' is persisted');
@@ -280,7 +281,7 @@ class pluginsToolsLog {
               pluginsToolsLog::unIncLog($_eqLogic, 'NONE');
             }
             
-            pluginsToolsDepedency::unIncLog($_eqLogic, 'NONE');
+            pluginsToolsLog::unIncLog($_eqLogic, 'NONE');
           }
           while ($nextFileLog != $cacheLogPath.'.tmp'
                  && $timeOut > 0);
@@ -291,95 +292,10 @@ class pluginsToolsLog {
           file_put_contents($cacheLogPath, $logMessage, FILE_APPEND | LOCK_EX);
         
         pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Rename file '.$cacheLogPath.'.tmp to '. pluginsToolsLog::mkdirPath('cacheLogUnlink', $cacheLogToken));
-        //rename($cacheLogPath.'.tmp', pluginsToolsLog::mkdirPath('cacheLogUnlink', $cacheLogToken));
-        unlink($cacheLogPath.'.tmp');
+        rename($cacheLogPath.'.tmp', pluginsToolsLog::mkdirPath('cacheLogUnlink', $cacheLogToken));
+        //unlink($cacheLogPath.'.tmp');
       }
     }
   }
-  /*
-  public static function replaceToken($_eqLogic) {
-    $token =            $_eqLogic -> getProtectedValue('cacheLogToken');
-    $filePath =         $_eqLogic -> getProtectedValue('objectCallLogPath');
-    $fileTokenPath =    $_eqLogic -> getProtectedValue('cacheLogPath');
-    $fileTokenContent = pluginsToolsLog::getTokenContent($_eqLogic);
-    
-    // Method 1
-    //$token =            $_eqLogic -> getProtectedValue('cacheLogToken');
-    //pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG_SYS', 'replaceToken by file_put_contents');
-    //file_put_contents($filePath, str_replace("\n".'[TOKEN]'.$token, $fileTokenContent, file_get_contents($filePath)), LOCK_EX);
-    
-    // Method 2
-    pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG_SYS', 'ReplaceToken by sed');
-
-    $fileTokenContentSplit =        str_split($fileTokenContent, 14500);
-    $fileTokenContentSplitLastKey = count($fileTokenContentSplit);
-
-    pluginsToolsDepedency::incLog($_eqLogic, 'DEBUG_SYS', 'Content split by '.$fileTokenContentSplitLastKey.' file');
-
-    $sedCmd = 'sed -i "s/\[TOKEN\]'.$token.'/\[TOKEN\]'.$token.'0/" '.$filePath;
-    com_shell::execute(system::getCmdSudo() . $sedCmd);
-    
-    foreach ($fileTokenContentSplit as $fileTokenContentBlockKey => $fileTokenContentBlockValue) {
-      $fileTokenTmpName =     $fileTokenPath.'.tmp'.$fileTokenContentBlockKey;
-      $fileTokenTmpContent =  'TOKEN::'.$fileTokenContentBlockKey."\\n".str_replace(["\n","/"],["\\n","\/"],$fileTokenContentBlockValue);
-      $tokenTmp =             $token.$fileTokenContentBlockKey;
-      $tokenTmpNext =         $token.($fileTokenContentBlockKey + 1);
-      
-      if ($fileTokenContentBlockKey < ($fileTokenContentSplitLastKey - 1))
-        $fileTokenTmpContent .= "[TOKEN]".$tokenTmpNext."\\n";
-
-      pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Create file tmp token '.$fileTokenTmpName);
-      //file_put_contents($fileTokenTmpName, $fileTokenTmpContent);
-      
-      $fileTokenTmp = fopen($fileTokenTmpName, "w+");    
-      if (flock($fileTokenTmp, LOCK_EX)) {          // acquière un verrou exclusif
-        fwrite($fileTokenTmp, $fileTokenTmpContent);
-        fflush($fileTokenTmp);    
-        flock($fileTokenTmp, LOCK_UN);            // Enlève le verrou
-      }
-      fclose($fileTokenTmp);      
-      
-      //$_timeOut =   120;
-      //while (!file_exists($fileTokenTmpName)
-      //       && $_timeOut > 0) {
-      //  $_timeOut -= 1;
-      //  sleep(1);
-      //}
-
-      $sedCmd = 'sed -i "s/\[TOKEN\]'.$tokenTmp.'/$(cat '.$fileTokenTmpName.')/" '.$filePath;
-      
-      pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Replace block token '.$tokenTmp);
-      pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', '  '.$sedCmd);
-      com_shell::execute(system::getCmdSudo() . $sedCmd);
-      
-      //unlink($fileTokenTmpName);
-    }
-    pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG_SYS');
-    // END Method 2
-    
-    pluginsToolsDepedency::unIncLog($_eqLogic, 'DEBUG_SYS');
-    
-    
-  }
-  
-  public static function getTokenContent($_eqLogic) {
-    $fileTokenPath = $_eqLogic -> getProtectedValue('cacheLogPath');
-    
-    if (file_exists($fileTokenPath)) {
-      pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Return token content on file');
-      
-      return file_get_contents($fileTokenPath);
-    }
-    return '';
-  }
-
-  public static function deleteTokenContent($_eqLogic) {
-    $fileTokenPath = $_eqLogic -> getProtectedValue('cacheLogPath');
-    
-    pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Delete file token '.$fileTokenPath);
-    if (file_exists($fileTokenPath))
-      unlink($fileTokenPath);
-  }
-  */
 }
 ?>
