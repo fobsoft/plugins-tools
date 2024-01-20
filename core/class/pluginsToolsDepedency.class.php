@@ -175,7 +175,10 @@ class pluginsToolsDepedency {
           file_put_contents(pluginsToolsDepedency::mkdirPath($objectCall, $dirLog, $suffixLog.$objectCall -> getId()), $logMessage."\n", FILE_APPEND | LOCK_EX);
         }
       }  
-    }    
+    }
+    
+    // Permet de mettre l'instruction d'ajout de log dans une conditionnel
+    return true; 
   }  
   
   public static function addLog(&$_eqLogic, $_typeLog, $_log, $_level = 'debug') {

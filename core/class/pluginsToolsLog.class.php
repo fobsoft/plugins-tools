@@ -203,6 +203,7 @@ class pluginsToolsLog {
       }  
     }
 
+    // Permet de mettre l'instruction d'ajout de log dans une conditionnel
     return true;
   }
   
