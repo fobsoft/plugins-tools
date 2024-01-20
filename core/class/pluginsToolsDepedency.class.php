@@ -572,10 +572,9 @@ class pluginsToolsDepedency {
       $cmdAction =    cmd::byId(str_replace('#', '', $_cmd));
       $cmdHumanName = $cmdAction -> getHumanName();
     }
-    else (
+    else
       $cmdHumanName = $_cmd;
-    }
-    
+
     if (class_exists('advancedScenario')) {
       pluginsToolsLog::incLog($_eqLogic, 'INFO', 'Exécution de '.$cmdHumanName.' via advancedScenario '. __(" avec comme option(s) : ", __FILE__) . json_encode($_options));
       
