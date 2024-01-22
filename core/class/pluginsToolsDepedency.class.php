@@ -15,35 +15,24 @@
 * along with Jeedom. If not, see <http://www.gnu.org/licenses/>.
 */
 
-abstract class pluginsToolsDepedencyConst {
-  const LogLevel =           [
-                              'Aucun' =>        0,
-                              'Error' =>        1,
-                              'Warning' =>      2,
-                              'Info' =>         4,
-                              'Debug' =>        8,
-                              'DebugAdvance' => 16 // Calcul, End part after begin
-                              ];
-                              
-  const TypeLogPriority =  array('ND' => 0, 'DEBUG_ADV' => 1, 'DEBUG' => 2, 'INFO' => 3, 'WARNING' => 4, 'ERROR' => 5);
-}
-
 class pluginsToolsDepedency {
-  public function purgeLog(&$_eqLogic) {
-    //$maxLineLog = config::byKey('maxLineLog', $_eqLogic -> getProtectedValue('className'), 5000);
-    //$path =       dirname(__FILE__) . '/../../../../log/pluginLog/plugin' . $_eqLogic -> getId() . '.log';
-
-    //pluginsToolsDepedency::addLog($_eqLogic, 'DEBUG', 'purgeLog off '.$path.' for max '.$maxLineLog.'line');
-    //if (file_exists($path)) {
-    //  try {
-    //    com_shell::execute(system::getCmdSudo() . 'chmod 664 ' . $path . ' > /dev/null 2>&1;echo "$(tail -n ' . $maxLineLog . ' ' . $path . ')" > ' . $path);
-    //  } 
-    //  catch (\Exception $e) {
-    //  }
-    //}
-    //pluginsToolsDepedency::persistLog($_eqLogic);
-  }  
-
+  public function getEqLogicProtectedValue(&$_eqLogic, $_valueName, $_default = null) {
+    $returnValue = null;
+    if ($_valueName == 'logLevel') {
+      $returnValue = $_eqLogic -> getConfiguration('logLevel', pluginsToolsLogConst::LogLevel['DEBUG_SYS']);
+      $returnValue += ($_eqLogic -> getConfiguration('widgetLog', 0) == 1)? pluginsToolsLogConst::LogLevelId['DEBUG_SYS_WIGET_LOG']:0;
+      $returnValue += ($_eqLogic -> getConfiguration('collectLog', 0) == 1)? pluginsToolsLogConst::LogLevelId['DEBUG_SYS_COLLECT_INFO']:0;
+    }
+    else
+      $returnValue = $_default;
+    
+    return $returnValue;
+  }
+  
+  public static function purgeLog(&$_eqLogic) {
+    
+  }
+  
   public static function mkdirPath(&$_eqLogic, $_dirName, $_fileName, $_purgeFile = false) {
     $path =       log::getPathToLog($_dirName);
     $filePath =   $path . '/' . $_fileName . '.log';
@@ -436,7 +425,7 @@ class pluginsToolsDepedency {
     
     $typeLog = $_eqLogic -> getProtectedValue('typeLog');
     foreach ($_service -> getProtectedValue('log') as $logKey => $logDetail) {
-      $typeLog = (pluginsToolsDepedencyConst::TypeLogPriority[$logDetail['typeLog']] > pluginsToolsDepedencyConst::TypeLogPriority[$typeLog])? $logDetail['typeLog']:$typeLog;
+      $typeLog = (pluginsToolsLogConst::TypeLogPriority[$logDetail['typeLog']] > pluginsToolsLogConst::TypeLogPriority[$typeLog])? $logDetail['typeLog']:$typeLog;
       pluginsToolsDepedency::setLog($_eqLogic, $logDetail['typeLog'], $logDetail['log']);
     }
     $_eqLogic -> setProtectedValue('typeLog', $typeLog);
@@ -578,14 +567,13 @@ class pluginsToolsDepedency {
     if (class_exists('advancedScenario')) {
       pluginsToolsLog::incLog($_eqLogic, 'INFO', 'Exécution de '.$cmdHumanName.' via advancedScenario '. __(" avec comme option(s) : ", __FILE__) . json_encode($_options));
       
-      if (is_object($cmdAction)) {
-        pluginsToolsLog::setLog($_eqLogic, 'INFO', 'Test before call #cmd'.$cmdAction -> getId().'#');
-        advancedScenario::byNode($_eqLogic, 'equipement_exec', 'action', '#cmd'.$cmdAction -> getId().'#', $_options);        
-      }
+      if (is_object($cmdAction))
+        advancedScenario::byNode($_eqLogic, ['type' => 'equipement_exec', 'subtype' => 'action', 'expression' => '#cmd'.$cmdAction -> getId().'#', 'options' => $_options]);        
       else {
         if (!isset($_options['tags']))
           $_options['tags'] = '';
                             
+        /*
         $_options['nodeList'] = [];
         $_options['nodeList'][1] = ["nodeId" => 1, "type" => "start", "subtype" => "trigger", "options" => [], "subelements" => ["GO" => ["type" => "", "subtype" => "action", "expression" => "", "linkTo" => [2]]], "title" => "Départ"];
         switch ($_cmd) {
@@ -595,6 +583,13 @@ class pluginsToolsDepedency {
                             break;
         }
         advancedScenario::byNodelist($_eqLogic, $_options);
+        */
+        switch ($_cmd) {
+          case 'scenario':  advancedScenario::byNode($_eqLogic, ['type' => 'advancedScenario', 'subtype' => 'action', 'scenarioId' => $_options["scenario_id"], 'options' => ["enable" => 1, "action" => "inc"], 'subelements' => ["OK" => ["linkTo" => []]]]);
+                            break;
+          default:          advancedScenario::byNode($_eqLogic, ["type" => $_cmd, "subtype" => "action", "title" => "", "options" => array_merge($_options, ["enable" => 1]), "subelements" => ["OK" => ["linkTo" => []]]]);
+                            break;
+        }
       }
       pluginsToolsLog::unIncLog($_eqLogic, 'INFO');
     }
@@ -827,7 +822,7 @@ class pluginsToolsDepedency {
       pluginsToolsDepedency::setLog($_eqLogic, 'INFO', __(" Timestamp dans le passé, on exécute la commande ", __FILE__) . $_function . __(" avec comme option(s) : ", __FILE__) . json_encode($_options), 'success');
       
       if (method_exists($_eqLogic, 'getProtectedValue'))
-        $_options['objectCall'] = pluginsToolsDepedency::getObjCall($_eqLogic); //$_options['cacheLogToken'] = $_eqLogic -> getProtectedValue('cacheLogToken');
+        pluginsToolsLog::setCacheLogDetailAsynchrone($_eqLogic, $_options);
       
       $className::{$_function}($_options);
       
