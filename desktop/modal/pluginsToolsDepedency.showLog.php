@@ -33,6 +33,7 @@ sendVarToJs('eqType',   init('eqType'));
   .label-danger {
     width: 55px;
   }
+
 </style>
 <div style="display: none;width : 100%" id="div_alertLog"></div>
 <?php echo '<span style="font-weight: bold;">' . $pluggin->getHumanName(true, false, true) . '</span>'; ?>
