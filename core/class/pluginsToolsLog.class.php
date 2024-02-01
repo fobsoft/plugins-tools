@@ -23,7 +23,6 @@ abstract class pluginsToolsLogConst {
                               'WARNING' =>                2,
                               'INFO' =>                   4,
                               'DEBUG' =>                  8,
-                              'DEBUG2' =>                 16,
                               'DEBUG_SYS' =>              16,
                               'DEBUG_SYS_WIGET_LOG' =>    32,
                               'DEBUG_SYS_COLLECT_INFO' => 64,
@@ -37,7 +36,6 @@ abstract class pluginsToolsLogConst {
                               'WARNING' =>                (2+1),    // 3
                               'INFO' =>                   (4+3),    // 7
                               'DEBUG' =>                  (8+7),    // 15
-                              'DEBUG2' =>                 (16+15),  // 31 
                               'DEBUG_SYS' =>              (16+15),  // 31 
                               'DEBUG_SYS_WIGET_LOG' =>    32,
                               'DEBUG_SYS_COLLECT_INFO' => 64,
@@ -310,7 +308,7 @@ class pluginsToolsLog {
             }
         
             if (file_exists($subCacheLogPath)) {
-              pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Sub token '.$subCacheLogPath.' exist, incllude this on log');
+              pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Sub token '.$subCacheLogPath.' exist, include this on log');
 
               $logMessage .= file_get_contents($subCacheLogPath)."\n";
               unlink($subCacheLogPath);              

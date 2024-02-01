@@ -130,8 +130,18 @@ class pluginsToolsDepedency {
               if (is_object($eqLogic = $class::byId($_option['eqLogicId']))) {
                 if (method_exists($class, 'getProtectedValue'))
                   pluginsToolsLog::init($eqLogic);
-                if (isset($_option['descAction']))
-                  pluginsToolsLog::incLog($eqLogic, 'INFO', $_option['descAction'] . ' par l\'evenement '.ucfirst($_option['_event']).' exécuté '. __(" avec comme option(s) : ", __FILE__) . '('.json_encode($_option).')', 'warning');
+                
+                if (isset($_option['descAction'])) {
+                  $logMessage = 'Listener ('.$_option['listener_id'].') '.$_option['descAction'];
+                  if (isset($_option['event_id']) && is_object($cmdEvent = cmd::byId($_option['event_id'])))
+                    $logMessage .= ' par l\'evenement '.ucfirst($cmdEvent -> getHumanName());
+                  if (isset($_option['value']))
+                    $logMessage .= ' avec la valeur '.$_option['value'];
+                  
+                  $logMessage .= ' exécuté '. __(" avec comme option(s) : ", __FILE__) . '('.json_encode($_option).')';
+                    
+                  pluginsToolsLog::incLog($eqLogic, 'INFO', $logMessage, 'warning');
+                }
                 
                 if ($eqLogic -> getIsEnable() != 1)
                   pluginsToolsLog::setLog($eqLogic, 'DEBUG','Equipement '.$eqLogic -> getHumanName().' désactivé, impossible d\'effectuer la verification d\'un changement sur le type generic '.$_option['summaryName']);
@@ -620,10 +630,17 @@ class pluginsToolsDepedency {
   
   public static function cmdActionExec($_eqLogicCall, $_cmd, $_options) {
     pluginsToolsLog::incLog($_eqLogicCall, 'DEBUG_SYS',  'cmdActionExec');
+    
+    if (!is_object($cmd = $_cmd)) {
+      if (is_numeric(trim($_cmd,'#')))
+        $cmd = cmd::byId(trim($_cmd,'#'));
+      else
+        $cmd = $_eqLogicCall -> getCmd(null, $_cmd);
+    }
 
-    if (is_object($_cmd) && $_cmd -> getType() == 'action') {
+    if (is_object($cmd) && $cmd -> getType() == 'action') {
       if (isset($_options['value'])) {
-        switch ($_cmd -> getSubType()) {
+        switch ($cmd -> getSubType()) {
           case 'slider':  if (!isset($_options['slider']))
                             $_options['slider'] = $_options['value'];
                           unset($_options['value']);
@@ -638,11 +655,16 @@ class pluginsToolsDepedency {
       if (!isset($_options['background']))
         $_options['background'] = 0;      
       
-      if (method_exists($_cmd -> getEqType_name(), 'getProtectedValue'))
-        pluginsToolsLog::setCacheLogDetailSynchrone($_eqLogicCall, $_cmd, $_options);
+      pluginsToolsLog::setlog($_eqLogicCall, 'INFO', __('Exécution de la commande ', __FILE__) .  $cmd -> getHumanName() . __(" avec comme option(s) : ", __FILE__) . json_encode($_options), 'success');
+      if (method_exists($cmd -> getEqType_name(), 'getProtectedValue')) {
+        pluginsToolsLog::inclog($_eqLogicCall, 'INFO', '');
+        pluginsToolsLog::setCacheLogDetailSynchrone($_eqLogicCall, $cmd, $_options);
+      }
       
-      pluginsToolsLog::setlog($_eqLogicCall, 'INFO', __('Exécution de la commande ', __FILE__) .  $_cmd -> getHumanName() . __(" avec comme option(s) : ", __FILE__) . json_encode($_options), 'success');
-      $_cmd -> execCmd($_options);
+      $cmd -> execCmd($_options);
+
+      if (method_exists($cmd -> getEqType_name(), 'getProtectedValue'))
+        pluginsToolsLog::unInclog($_eqLogicCall, 'INFO', '');
     }
     else
       pluginsToolsDepedency::setLog($_eqLogicCall, 'ERROR', $GLOBALS['JEEDOM_SCLOG_TEXT']['unfoundCmd']['txt'] . ' ' . $_cmd);
@@ -690,7 +712,14 @@ class pluginsToolsDepedency {
         
         if (!isset($_options['tags']))
           $_options['tags'] = '';
-                            
+        elseif (isset($_options['tags']) && !is_array($_options['tags']))
+          $_options['tags'] = explode($_options['tags'],',');
+          
+        if (isset($_options['user_id'])) {
+          $_options['tags']['#profil#'] = $_options['user_id'];
+          $_options['tags']['#user_id#'] = $_options['user_id'];
+        }          
+
         $_options['nodeList'] = [];
         $_options['nodeList'][1] = ["nodeId" => 1, "type" => "start", "subtype" => "trigger", "options" => [], "subelements" => ["GO" => ["type" => "", "subtype" => "action", "expression" => "", "linkTo" => [2]]], "title" => "Départ"];
         switch ($_cmd) {
@@ -711,7 +740,7 @@ class pluginsToolsDepedency {
       else {
         pluginsToolsLog::incLog($_eqLogicCall, 'DEBUG', 'Exécution de '.$cmdHumanName.' via les classes par défault');
 
-        $_options['cacheLogToken'] = pluginsToolsLog::generateCacheToken($_eqLogicCall, $_eqLogicCall);
+        //$_options['cacheLogToken'] = pluginsToolsLog::generateCacheToken($_eqLogicCall, $_eqLogicCall);
         
         pluginsToolsLog::setlog($_eqLogicCall, 'INFO', __('Exécution de la commande ', __FILE__) . $cmdHumanName . __(" avec comme option(s) : ", __FILE__) . json_encode($_options), 'success');
         scenarioExpression::createAndExec('action', $_cmd, $_options);
@@ -908,16 +937,15 @@ class pluginsToolsDepedency {
   
   public function cronCreateUnique(&$_eqLogic, $_function, $_key, $_options, $_schedule, $_setOnce = 1) {
     $className =            get_class($_eqLogic);
-    $scheduleIsTimestamp =  pluginsToolsDepedency::isValidTimeStamp($_schedule);
     $directExecution =      false;
+
+    pluginsToolsLog::incLog($_eqLogic, 'INFO', 'Set cron '.$_key.' ('.$_schedule.')');
 
     $cronsList = [];
     foreach (cron::searchClassAndFunction($className, $_function, $_key) as $cron)
       $cronsList[$cron -> getId()] = $cron;
     
-    pluginsToolsLog::incLog($_eqLogic, 'INFO', 'Set cron '.$_schedule);
-    
-    if ($scheduleIsTimestamp) {
+    if (($scheduleIsTimestamp =  pluginsToolsDepedency::isValidTimeStamp($_schedule))) {
       $currentTimestamp = new DateTime("now");
       $startEvent =       (new DateTime()) -> setTimestamp($_schedule);
       $_schedule =        cron::convertDateToCron($_schedule);
@@ -927,15 +955,12 @@ class pluginsToolsDepedency {
       pluginsToolsLog::incLog($_eqLogic, 'INFO', __(" Timestamp dans le passé, on exécute la commande ", __FILE__) . $_function, 'success');
       pluginsToolsLog::setLog($_eqLogic, 'DEBUG', [__(" avec comme option(s) : ", __FILE__) => $_options]);
       
-      if (method_exists($_eqLogic, 'getProtectedValue'))
-        pluginsToolsLog::setCacheLogDetailAsynchrone($_eqLogic, $_options);
-      
       $className::{$_function}($_options);
 
       pluginsToolsLog::unIncLog($_eqLogic, 'INFO');
     }
     elseif (!is_array($cronsList) || count($cronsList) == 0) {
-      pluginsToolsLog::incLog($_eqLogic, 'INFO', 'Creation of cron with '.($scheduleIsTimestamp? 'timestamp ('.date_format($startEvent).')':'schedule'), 'success'); 
+      pluginsToolsLog::incLog($_eqLogic, 'INFO', 'Creation of cron with schedule '.$_schedule.($scheduleIsTimestamp? ' ('.date_format($startEvent).')':''), 'success'); 
       pluginsToolsLog::setLog($_eqLogic, 'DEBUG', [__(" avec comme option(s) : ", __FILE__) => $_options]);
 
       $cron = new cron();
@@ -953,7 +978,7 @@ class pluginsToolsDepedency {
       pluginsToolsLog::incLog($_eqLogic, 'INFO','Re-schedule of cron with '.($scheduleIsTimestamp? 'timestamp ('.date_format($startEvent).')':'schedule'), 'success'); 
       pluginsToolsLog::setLog($_eqLogic, 'DEBUG', [__(" avec comme option(s) : ", __FILE__) => $_options]);
       
-      $cron = array_values($cron)[0];
+      $cron = array_values($cronsList)[0];
       $cron -> setOption($_options);
       $cron -> setSchedule($_schedule);
       $cron -> save();
@@ -964,7 +989,7 @@ class pluginsToolsDepedency {
     }
     
     if (count($cronsList) > 0) {
-      pluginsToolsLog::incLog($_eqLogic, 'DEBUG', ['Remouve cron not use' => $summaryListener]);
+      pluginsToolsLog::incLog($_eqLogic, 'DEBUG', ['Remove cron not use' => $cronsList]);
 
       foreach ($cronsList as $cronKey => $cron) {
         pluginsToolsLog::setLog($_eqLogic, 'DEBUG','Remove cron id '.$cronKey);
