@@ -375,20 +375,14 @@ class pluginsToolsLog {
     }
   }
   
-  /*public static function purgeLog(&$_eqLogic) {
-    $maxLineLog =         5000;//config::byKey('maxLineLog', $_eqLogic -> getProtectedValue('className'), 5000);
-    $objectCallLogPath =  $objectCallLogPath =  $_eqLogic -> getProtectedValue('objectCallLogPath', null);
-    $pluginPath =         log::getPathToLog('pluginLog').'/plugin' . $_eqLogic -> getId() . '.log';
-
-    if ($objectCallLogPath == $pluginPath) {
-      if (file_exists($pluginPath)) {
-        try {
-          com_shell::execute(system::getCmdSudo() . 'chmod 664 ' . $path . ' > /dev/null 2>&1;echo "$(tail -n ' . $maxLineLog . ' ' . $pluginPath . ')" > ' . $pluginPath);
-        } 
-        catch (\Exception $e) {
-        }
-      }
-    }
-  } */ 
+  public static function purgeLog(&$_eqLogic) {
+    $maxLineLog =         config::byKey('maxLineLog', $_eqLogic -> getProtectedValue('className'), 5000);
+    $dirLog =             $_eqLogic -> getProtectedValue('dirLog', 'pluginLog');
+    $suffixLog =          $_eqLogic -> getProtectedValue('suffixLog', 'plugin');
+    $objectCallLogPath =  pluginsToolsLog::mkdirPath($dirLog, $suffixLog.$_eqLogic -> getId());
+      
+    if (file_exists($objectCallLogPath))
+      com_shell::execute(system::getCmdSudo() . 'chmod 664 ' . $objectCallLogPath . ' > /dev/null 2>&1;echo "$(tail -n ' . $maxLineLog . ' ' . $objectCallLogPath . ')" > ' . $objectCallLogPath);
+  } 
 }
 ?>

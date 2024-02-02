@@ -34,10 +34,6 @@ class pluginsToolsDepedency {
     return isset($value);
   }
   
-  public static function purgeLog(&$_eqLogic) {
-    
-  }
-  
   public static function mkdirPath(&$_eqLogic, $_dirName, $_fileName, $_purgeFile = false) {
     $path =       log::getPathToLog($_dirName);
     $filePath =   $path . '/' . $_fileName . '.log';
