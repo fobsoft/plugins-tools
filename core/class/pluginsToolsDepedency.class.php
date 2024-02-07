@@ -381,8 +381,9 @@ class pluginsToolsDepedency {
                     $arrValue = $listCmdToCreated[str_replace('#', '', $arrValue)]['id'];
                 }                
                 pluginsToolsLog::setLog($_eqLogic, 'DEBUG','Set '.$arrKey.' with value:'.json_encode($arrValue));
-                $cmd -> {'set'.$key}($arrKey, $arrValue);
                 
+                $cmd -> {'set'.$key}($arrKey, $arrValue);
+              
                 /*if (isset($arrValue)) {
                   if (preg_match_all("/#\[(.*?)\]#/", $arrValue, $matches, PREG_SET_ORDER) && count($matches) > 0) {
                     pluginsToolsLog::setLog($_eqLogic, 'DEBUG', 'Valeur dynamique trouvé');
@@ -418,7 +419,10 @@ class pluginsToolsDepedency {
               if (isset($value))
                 $value = pluginsToolsDepedency::convertCmdConfigValue($_eqLogic, $listCmdToCreated, $value);
 
-              pluginsToolsLog::setLog($_eqLogic, 'DEBUG','Set '.$key.' with value:'.json_encode($value));
+              if ($key == 'Value' && strpos($value, '#') !== false)
+                $value = str_replace('#', '', $value);
+                
+              pluginsToolsLog::setLog($_eqLogic, 'DEBUG',['Set '.$key.' with value' => $value]);
               $cmd -> {'set'.$key}($value);
                 /*
                 if (preg_match_all("/#\[(.*?)\]#/", $value, $matches, PREG_SET_ORDER) && count($matches) > 0) {
@@ -456,8 +460,22 @@ class pluginsToolsDepedency {
             $cmd -> setOrder($orderCreationCmd);
             $orderCreationCmd += 1;
           }
+
+          pluginsToolsLog::incLog($_eqLogic, 'DEBUG', 'Resume set of commande before save');
+          pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Configuration' => (array)$cmd -> getConfiguration()]);
+          pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Display' => (array)$cmd -> getDisplay()]);
+          pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Value' => (array)$cmd -> getValue()]);
+          pluginsToolsLog::unIncLog($_eqLogic, 'DEBUG', 'Resume set of commande before save');
           
           $cmd -> save();
+          
+          pluginsToolsLog::incLog($_eqLogic, 'DEBUG', 'Resume set of commande after save');
+          $cmdTmp = cmd::byId($cmd -> getId());
+          pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Configuration' => (array)$cmdTmp -> getConfiguration()]);
+          pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Display' => (array)$cmdTmp -> getDisplay()]);
+          pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Value' => (array)$cmdTmp -> getValue()]);
+          pluginsToolsLog::unIncLog($_eqLogic, 'DEBUG', 'Resume set of commande after save');
+
 
           //if ($newCmd && isset($defaultValue) && $configInfos['Type'] == 'info')
           if (isset($defaultValue) && $configInfos['Type'] == 'info')
@@ -624,14 +642,12 @@ class pluginsToolsDepedency {
     pluginsToolsLog::unIncLog($_eqLogicCall, 'DEBUG_SYS',  'cmdInfoSet');
   }
   
-  public static function cmdActionExec($_eqLogicCall, $_cmd, $_options) {
+  public static function cmdActionExec($_eqLogicCall, $_cmd, $_options = null) {
     pluginsToolsLog::incLog($_eqLogicCall, 'DEBUG_SYS',  'cmdActionExec');
     
     if (!is_object($cmd = $_cmd)) {
       if (is_numeric(trim($_cmd,'#')))
         $cmd = cmd::byId(trim($_cmd,'#'));
-      else
-        $cmd = $_eqLogicCall -> getCmd(null, $_cmd);
     }
 
     if (is_object($cmd) && $cmd -> getType() == 'action') {
