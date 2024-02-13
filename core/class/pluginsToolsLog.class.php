@@ -275,40 +275,41 @@ class pluginsToolsLog {
     $logLevel =           $_eqLogic -> getProtectedValue('logLevel');
     $persistLog =         $_eqLogic -> getProtectedValue('persistLog', 0);
 
-    if ($_eqLogic -> getProtectedValue('persistLog', 0) == 1) {
-      pluginsToolsLog::incLog($_eqLogic, 'NONE', 'Process persist');
+    if (isset($cacheLogPath) && isset($objectCallLogPath) && is_file($cacheLogPath)) {
+      $logMessage =   "";
+      $lineList =     file($cacheLogPath);
 
-      if (isset($cacheLogPath) && isset($objectCallLogPath) && is_file($cacheLogPath)) {
-        $logMessage =   "";
-        $lineList =     file($cacheLogPath);
+      if ($_eqLogic -> getProtectedValue('persistLog', 0) == 1) {
+        pluginsToolsLog::incLog($_eqLogic, 'DEBUG_SYS', 'Process persist');
+
               
-        pluginsToolsLog::setLog($_eqLogic, 'NONE', 'objectCallLogPath:'.(isset($objectCallLogPath)? $objectCallLogPath:''));
-        pluginsToolsLog::setLog($_eqLogic, 'NONE', 'cacheLogPath:'.     (isset($cacheLogPath)? $cacheLogPath:''));
-        pluginsToolsLog::setLog($_eqLogic, 'NONE', 'logLevel:'.         (isset($logLevel)? $logLevel:''));
+        pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'objectCallLogPath:'.(isset($objectCallLogPath)? $objectCallLogPath:''));
+        pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'cacheLogPath:'.     (isset($cacheLogPath)? $cacheLogPath:''));
+        pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'logLevel:'.         (isset($logLevel)? $logLevel:''));
 
         foreach ($lineList as $lineKey => $lineMessage) {
           if (preg_match_all("/(\[TOKEN\]|\[NONE\])(.*)/", $lineMessage, $matches, PREG_SET_ORDER) && count($matches) > 0) {
             if ($matches[0][1] == '[NONE]')
               continue;
             
-            pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Detected sub token '.json_encode($matches));
+            pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Detected sub token '.json_encode($matches));
             $subCacheToken =   $matches[0][2];
             $subCacheLogPath = pluginsToolsLog::mkdirPath('cacheLog', $subCacheToken);
             
-            pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Detected sub token '.$subCacheToken.'('.$subCacheLogPath.')');
+            pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Detected sub token '.$subCacheToken.'('.$subCacheLogPath.')');
 
             if (file_exists($subCacheLogPath.'.tmp')) {
               $timeOut = 5;
               while (!file_exists($subCacheLogPath.'.tmp')
                      && $timeOut > 0) {
-                pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Sub token '.$subCacheLogPath.' not exist, wait 1 seconde');
+                pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Sub token '.$subCacheLogPath.' not exist, wait 1 seconde');
                 $timeOut -= 1;
                 sleep(1);
               }
             }
         
             if (file_exists($subCacheLogPath)) {
-              pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Sub token '.$subCacheLogPath.' exist, include this on log');
+              pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Sub token '.$subCacheLogPath.' exist, include this on log');
 
               $logMessage .= file_get_contents($subCacheLogPath)."\n";
               unlink($subCacheLogPath);              
@@ -362,11 +363,11 @@ class pluginsToolsLog {
                  && $timeOut > 0);
         }*/
 
-        pluginsToolsLog::unIncLog($_eqLogic, 'NONE', 'Write log on '.$objectCallLogPath);
+        pluginsToolsLog::unIncLog($_eqLogic, 'DEBUG_SYS', 'Write log on '.$objectCallLogPath);
         file_put_contents($objectCallLogPath, $logMessage, FILE_APPEND | LOCK_EX);
 
         if ($logLevel & pluginsToolsLogConst::LogLevelId['DEBUG_SYS']) {
-          pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Rename file '.$cacheLogPath.' to '. str_replace('/cacheLog/','/cacheLogUnlink/',$cacheLogPath));
+          pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Rename file '.$cacheLogPath.' to '. str_replace('/cacheLog/','/cacheLogUnlink/',$cacheLogPath));
           rename($cacheLogPath, str_replace('/cacheLog/','/cacheLogUnlink/',$cacheLogPath));
         }
         else

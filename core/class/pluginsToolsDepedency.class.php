@@ -491,7 +491,7 @@ class pluginsToolsDepedency {
         pluginsToolsLog::unIncLog($_eqLogic, 'DEBUG'); // Commande
       }
       
-      if (isset($_options['autoRemouve']) && $_options['autoRemouve'] == 1) {
+      if (isset($_options['autoRemove']) && $_options['autoRemove'] == 1) {
         pluginsToolsLog::incLog($_eqLogic, 'DEBUG', 'Suppression des commandes qui ne figure pas dans la liste');
         
         foreach (cmd::byEqLogicId($_eqLogic -> getId()) as $cmd) {
