@@ -259,6 +259,9 @@ class pluginsToolsLog {
               $logMessage .= htmlspecialchars($_logRecord['log'], ENT_SUBSTITUTE);
           }
           
+          //if (method_exists($_eqLogic, 'addEvolutiveLog'))
+          //  $_eqLogic -> addEvolutiveLog($logMessage."\n");
+          //else
           if (($cacheLogPath = $_eqLogic -> getProtectedValue('cacheLogPath', '')) != '')
             file_put_contents($cacheLogPath, $logMessage."\n", FILE_APPEND | LOCK_EX);
         }
@@ -275,17 +278,25 @@ class pluginsToolsLog {
     $logLevel =           $_eqLogic -> getProtectedValue('logLevel');
     $persistLog =         $_eqLogic -> getProtectedValue('persistLog', 0);
 
-    if (isset($cacheLogPath) && isset($objectCallLogPath) && is_file($cacheLogPath)) {
+    pluginsToolsLog::incLog($_eqLogic, 'NONE', 'Process persist');
+
+    pluginsToolsLog::setLog($_eqLogic, 'NONE', 'objectCallLogPath:'.(isset($objectCallLogPath)? $objectCallLogPath:''));
+    pluginsToolsLog::setLog($_eqLogic, 'NONE', 'cacheLogPath:'.     (isset($cacheLogPath)? $cacheLogPath:''));
+    pluginsToolsLog::setLog($_eqLogic, 'NONE', 'logLevel:'.         (isset($logLevel)? $logLevel:''));
+
+    if (isset($objectCallLogPath) && $_eqLogic -> getProtectedValue('persistLog', 0) == 1) {
       $logMessage =   "";
-      $lineList =     file($cacheLogPath);
-
-      if ($_eqLogic -> getProtectedValue('persistLog', 0) == 1) {
-        pluginsToolsLog::incLog($_eqLogic, 'DEBUG_SYS', 'Process persist');
-
-              
-        pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'objectCallLogPath:'.(isset($objectCallLogPath)? $objectCallLogPath:''));
-        pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'cacheLogPath:'.     (isset($cacheLogPath)? $cacheLogPath:''));
-        pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'logLevel:'.         (isset($logLevel)? $logLevel:''));
+      
+      //if (method_exists($_eqLogic, 'getEvolutiveLog')) {
+      //  pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Get Log on equipement');
+      //  $lineList = $_eqLogic -> getEvolutiveLog();
+      //}
+      //elseif (isset($cacheLogPath) && is_file($cacheLogPath)) {
+        pluginsToolsLog::setLog($_eqLogic, 'NONE', 'Get Log tempory file');
+        $lineList =     file($cacheLogPath);
+      //}
+        
+      if (count($lineList)) {
 
         foreach ($lineList as $lineKey => $lineMessage) {
           if (preg_match_all("/(\[TOKEN\]|\[NONE\])(.*)/", $lineMessage, $matches, PREG_SET_ORDER) && count($matches) > 0) {
@@ -362,18 +373,20 @@ class pluginsToolsLog {
           while ($nextFileLog != $cacheLogPath
                  && $timeOut > 0);
         }*/
-
-        pluginsToolsLog::unIncLog($_eqLogic, 'DEBUG_SYS', 'Write log on '.$objectCallLogPath);
-        file_put_contents($objectCallLogPath, $logMessage, FILE_APPEND | LOCK_EX);
-
-        if ($logLevel & pluginsToolsLogConst::LogLevelId['DEBUG_SYS']) {
-          pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Rename file '.$cacheLogPath.' to '. str_replace('/cacheLog/','/cacheLogUnlink/',$cacheLogPath));
-          rename($cacheLogPath, str_replace('/cacheLog/','/cacheLogUnlink/',$cacheLogPath));
-        }
-        else
-          unlink($cacheLogPath);
       }
+      pluginsToolsLog::unIncLog($_eqLogic, 'DEBUG_SYS', 'Write log on '.$objectCallLogPath);
+      file_put_contents($objectCallLogPath, $logMessage, FILE_APPEND | LOCK_EX);
+
+      if ($logLevel & pluginsToolsLogConst::LogLevelId['DEBUG_SYS']) {
+        pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', 'Rename file '.$cacheLogPath.' to '. str_replace('/cacheLog/','/cacheLogUnlink/',$cacheLogPath));
+        file_put_contents(str_replace('/cacheLog/','/cacheLogUnlink/',$cacheLogPath), implode("", $lineList));
+      }
+      unlink($cacheLogPath);
+      
+      //if (method_exists($_eqLogic, 'resetEvolutiveLog'))
+      //  $_eqLogic -> resetEvolutiveLog();
     }
+    pluginsToolsLog::unIncLog($_eqLogic, 'NONE', 'Process persist');
   }
   
   public static function purgeLog(&$_eqLogic) {

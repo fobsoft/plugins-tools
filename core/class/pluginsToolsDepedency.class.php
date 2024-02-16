@@ -297,13 +297,14 @@ class pluginsToolsDepedency {
     $_eqLogic -> setProtectedValue('listCmdToCreated', array());    
   }
     
-  public static function setCmdList(&$_eqLogic, $_listCmdToCreated = null, $_options = []) {
+  public static function setCmdList(&$_eqLogic, $_listCmdToCreated = null, $_option = []) {
     $eqLogicId =        $_eqLogic -> getId();
-    $keyNotUpdated =    array('IsVisible', 'IsHistorized', 'Generic_type', 'Name');
+    $keyNotUpdated =    isset($_option['keyNotUpdated'])? $_option['keyNotUpdated']:['IsVisible', 'IsHistorized', 'Generic_type', 'Name'];
     $listCmdToCreated = $_listCmdToCreated;
     $orderCreationCmd = $_eqLogic -> getProtectedValue('orderCreationCmd', 1);
 
-    pluginsToolsLog::incLog($_eqLogic, 'DEBUG', 'Configuration de la liste des commandes:: '.json_encode($listCmdToCreated));
+    pluginsToolsLog::incLog($_eqLogic, 'DEBUG', 'Configuration de la liste des commandes:: ' . json_encode($listCmdToCreated));
+    pluginsToolsLog::setLog($_eqLogic, 'DEBUG', 'List des clées qui ne seront pas mise à jour: ' . json_encode($keyNotUpdated));
     
     if (isset($listCmdToCreated)) {
       foreach ($listCmdToCreated as $logicalId => $configInfos) {      
@@ -455,7 +456,7 @@ class pluginsToolsDepedency {
           pluginsToolsLog::setLog($_eqLogic, 'DEBUG','Set EqType with value:'.$_eqLogic -> getEqType_name());
           $cmd -> setEqType($_eqLogic -> getEqType_name());
           
-          if (isset($_options['setOrder']) && $_options['setOrder'] == 1) {
+          if (isset($_option['setOrder']) && $_option['setOrder'] == 1) {
             pluginsToolsLog::setLog($_eqLogic, 'DEBUG','set Order with value:'.$orderCreationCmd);
             $cmd -> setOrder($orderCreationCmd);
             $orderCreationCmd += 1;
@@ -465,6 +466,7 @@ class pluginsToolsDepedency {
           pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Configuration' => (array)$cmd -> getConfiguration()]);
           pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Display' => (array)$cmd -> getDisplay()]);
           pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Value' => (array)$cmd -> getValue()]);
+          pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Order' => (array)$cmd -> getOrder()]);
           pluginsToolsLog::unIncLog($_eqLogic, 'DEBUG', 'Resume set of commande before save');
           
           $cmd -> save();
@@ -474,6 +476,7 @@ class pluginsToolsDepedency {
           pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Configuration' => (array)$cmdTmp -> getConfiguration()]);
           pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Display' => (array)$cmdTmp -> getDisplay()]);
           pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Value' => (array)$cmdTmp -> getValue()]);
+          pluginsToolsLog::setLog($_eqLogic, 'DEBUG', ['Order' => (array)$cmdTmp -> getOrder()]);
           pluginsToolsLog::unIncLog($_eqLogic, 'DEBUG', 'Resume set of commande after save');
 
 
@@ -491,7 +494,7 @@ class pluginsToolsDepedency {
         pluginsToolsLog::unIncLog($_eqLogic, 'DEBUG'); // Commande
       }
       
-      if (isset($_options['autoRemove']) && $_options['autoRemove'] == 1) {
+      if (isset($_option['autoRemove']) && $_option['autoRemove'] == 1) {
         pluginsToolsLog::incLog($_eqLogic, 'DEBUG', 'Suppression des commandes qui ne figure pas dans la liste');
         
         foreach (cmd::byEqLogicId($_eqLogic -> getId()) as $cmd) {
@@ -505,7 +508,7 @@ class pluginsToolsDepedency {
         pluginsToolsLog::unIncLog($_eqLogic, 'DEBUG');
       }
       
-      if (isset($_options['setOrder']) && $_options['setOrder'] == 1)
+      if (isset($_option['setOrder']) && $_option['setOrder'] == 1)
         $_eqLogic -> setProtectedValue('orderCreationCmd', $orderCreationCmd);
     }
     
@@ -964,16 +967,16 @@ class pluginsToolsDepedency {
     }
       
     if (($directExecution = (isset($startEvent) && $currentTimestamp > $startEvent))) {
-      pluginsToolsLog::incLog($_eqLogic, 'INFO', __(" Timestamp dans le passé, on exécute la commande ", __FILE__) . $_function, 'success');
-      pluginsToolsLog::setLog($_eqLogic, 'DEBUG', [__(" avec comme option(s) : ", __FILE__) => $_options]);
+      pluginsToolsLog::incLog($_eqLogic, 'DEBUG', __(" Timestamp dans le passé, on exécute la commande ", __FILE__) . $_function, 'success');
+      pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', [__(" avec comme option(s) : ", __FILE__) => $_options]);
       
       $className::{$_function}($_options);
 
       pluginsToolsLog::unIncLog($_eqLogic, 'INFO');
     }
     elseif (!is_array($cronsList) || count($cronsList) == 0) {
-      pluginsToolsLog::incLog($_eqLogic, 'INFO', 'Creation of cron with schedule '.$_schedule.($scheduleIsTimestamp? ' ('.date_format($startEvent).')':''), 'success'); 
-      pluginsToolsLog::setLog($_eqLogic, 'DEBUG', [__(" avec comme option(s) : ", __FILE__) => $_options]);
+      pluginsToolsLog::incLog($_eqLogic, 'DEBUG', 'Creation of cron with schedule '.$_schedule.($scheduleIsTimestamp? ' ('.date_format($startEvent).')':''), 'success'); 
+      pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', [__(" avec comme option(s) : ", __FILE__) => $_options]);
 
       $cron = new cron();
       $cron-> setClass($className);
@@ -987,8 +990,8 @@ class pluginsToolsDepedency {
       pluginsToolsLog::unIncLog($_eqLogic, 'INFO');
     }
     else {
-      pluginsToolsLog::incLog($_eqLogic, 'INFO','Re-schedule of cron with '.($scheduleIsTimestamp? 'timestamp ('.date_format($startEvent).')':'schedule'), 'success'); 
-      pluginsToolsLog::setLog($_eqLogic, 'DEBUG', [__(" avec comme option(s) : ", __FILE__) => $_options]);
+      pluginsToolsLog::incLog($_eqLogic, 'DEBUG', 'Re-schedule of cron with '.($scheduleIsTimestamp? 'timestamp ('.date_format($startEvent).')':'schedule'), 'success'); 
+      pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS', [__(" avec comme option(s) : ", __FILE__) => $_options]);
       
       $cron = array_values($cronsList)[0];
       $cron -> setOption($_options);
@@ -1001,14 +1004,14 @@ class pluginsToolsDepedency {
     }
     
     if (count($cronsList) > 0) {
-      pluginsToolsLog::incLog($_eqLogic, 'DEBUG', ['Remove cron not use' => $cronsList]);
+      pluginsToolsLog::incLog($_eqLogic, 'DEBUG_SYS', ['Remove cron not use' => $cronsList]);
 
       foreach ($cronsList as $cronKey => $cron) {
-        pluginsToolsLog::setLog($_eqLogic, 'DEBUG','Remove cron id '.$cronKey);
+        pluginsToolsLog::setLog($_eqLogic, 'DEBUG_SYS','Remove cron id '.$cronKey);
         $cron -> remove();
       }
 
-      pluginsToolsLog::unIncLog($_eqLogic, 'DEBUG');
+      pluginsToolsLog::unIncLog($_eqLogic, 'DEBUG_SYS');
     }
     
     pluginsToolsLog::unIncLog($_eqLogic, 'INFO');
