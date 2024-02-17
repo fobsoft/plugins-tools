@@ -637,6 +637,9 @@ class pluginsToolsDepedency {
       }
       
       pluginsToolsLog::setLog($_eqLogicCall, 'INFO',  __('Configuration de la commande ', __FILE__) . $_cmd -> getHumanName() . '  à ' . $_value, 'success');
+      
+      $_cmd -> setCache('lastCmdValue', $_cmd -> getCache('currentValue'));
+      $_cmd -> setCache('currentValue', $_value);
       $_cmd -> event($_value);
     }
     else
@@ -644,6 +647,17 @@ class pluginsToolsDepedency {
 
     pluginsToolsLog::unIncLog($_eqLogicCall, 'DEBUG_SYS',  'cmdInfoSet');
   }
+  
+  public static function cmdInfoPreviousValue($_eqLogicCall, $_cmd, $_defaultValue) {
+    pluginsToolsLog::incLog($_eqLogicCall, 'DEBUG_SYS', 'cmdInfoPreviousValue');
+    
+    if (is_object($_cmd) && $_cmd -> getType() == 'info')
+      return $_cmd -> getCache('lastCmdValue', $_defaultValue);
+    else
+      return $_defaultValue;
+
+    pluginsToolsLog::unIncLog($_eqLogicCall, 'DEBUG_SYS', 'cmdInfoPreviousValue');
+  }  
   
   public static function cmdActionExec($_eqLogicCall, $_cmd, $_options = null) {
     pluginsToolsLog::incLog($_eqLogicCall, 'DEBUG_SYS',  'cmdActionExec');

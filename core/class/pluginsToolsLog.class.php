@@ -386,7 +386,6 @@ class pluginsToolsLog {
       //if (method_exists($_eqLogic, 'resetEvolutiveLog'))
       //  $_eqLogic -> resetEvolutiveLog();
     }
-    pluginsToolsLog::unIncLog($_eqLogic, 'NONE', 'Process persist');
   }
   
   public static function purgeLog(&$_eqLogic) {
